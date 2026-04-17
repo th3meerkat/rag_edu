@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.schemas import ChatRequest, ChatResponse
-from app.service import query
+from app.services.langchain_rag.service import LangchainSrv
+from app.schemas import ChatRequest, ChatResponse, Engine
 
 app = FastAPI(title="rag-chat backend")
 
@@ -16,5 +16,10 @@ app.add_middleware(
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
-    res = query(req)
-    return ChatResponse(reply=res)
+    """Chat endpoint: routes to the matching RagService based on the engine."""
+    if req.engine == Engine.LANGCHAIN:
+        reply = LangchainSrv().query(req.message)
+    else:
+        # reply = LlamaindexSrv().query(req.message)
+        reply = "LLM response"
+    return ChatResponse(reply=reply)

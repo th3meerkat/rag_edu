@@ -9,7 +9,7 @@ Execute the Langchain RAG ingestion pipeline.
 Run with the Bash tool (foreground, so the user sees the output):
 
 ```
-cd backend && uv run python -c "from app.langchain_rag.service import LangchainSrv; LangchainSrv.run_ingestion()"
+cd backend && uv run python -c "from app.services.langchain_rag.service import LangchainSrv; LangchainSrv().run_ingestion()"
 ```
 
 This will:
