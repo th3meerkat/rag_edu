@@ -14,11 +14,12 @@ import pytest
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.runnables import Runnable
 from langchain_openai import OpenAIEmbeddings
 
 from app.config import ENV_PATH
-from app.comm.db_comm import (
+from app.services.langchain_rag.db_comm import (
     CHROMA_HOST,
     CHROMA_PORT,
     COLLECTION_METADATA,
@@ -76,15 +77,25 @@ def temp_manifest_path(monkeypatch, tmp_path) -> Path:
 
 # ---------- LLM / HTTP mocks ----------
 
-class _EchoLLM:
-    """Fake ChatOpenAI: returns a canned AIMessage based on the last HumanMessage."""
+class _EchoLLM(Runnable):
+    """Fake Runnable chat model: records invocations and returns a fixed AIMessage.
+
+    Must be a Runnable so it composes inside LCEL chains (`prompt | llm | parser`).
+    """
 
     def __init__(self, content: str):
+        super().__init__()
         self._content = content
         self.invoke_calls: list[list[Any]] = []
 
-    def invoke(self, messages):
-        self.invoke_calls.append(list(messages))
+    def invoke(self, input, config=None, **kwargs):  # noqa: A002
+        if hasattr(input, "to_messages"):
+            messages = input.to_messages()
+        elif isinstance(input, str):
+            messages = [HumanMessage(content=input)]
+        else:
+            messages = list(input)
+        self.invoke_calls.append(messages)
         return AIMessage(content=self._content)
 
 
@@ -112,7 +123,16 @@ def echo_chat_openai(monkeypatch):
         "app.services.langchain_rag.service",
         "respuesta-eco",
     )
-    return created
+
+    # The service caches its LLM/chain in lru_cache; clear so the patch applies.
+    from app.services.langchain_rag import service as _svc
+    _svc._get_llm.cache_clear()
+    _svc._get_chain.cache_clear()
+
+    yield created
+
+    _svc._get_llm.cache_clear()
+    _svc._get_chain.cache_clear()
 
 
 @pytest.fixture

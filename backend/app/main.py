@@ -1,8 +1,21 @@
+import logging
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.services.langchain_rag.service import LangchainSrv
+from app.config import ENV_PATH
 from app.schemas import ChatRequest, ChatResponse, Engine
+from app.services.langchain_rag.service import LangchainSrv
+
+# Load credentials once at process start — callers should not trigger dotenv
+# as a side effect of every query.
+load_dotenv(ENV_PATH)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+)
 
 app = FastAPI(title="rag-chat backend")
 

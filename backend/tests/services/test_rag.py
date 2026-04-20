@@ -35,9 +35,10 @@ class _FakeRagService(RagService):
 
 
 @pytest.fixture
-def no_dotenv(monkeypatch):
-    """Prevent load_dotenv from touching the real env file."""
-    monkeypatch.setattr("app.services.rag.load_dotenv", lambda *a, **kw: None)
+def no_dotenv():
+    """No-op placeholder: load_dotenv was removed from rag.py (now lives at app
+    startup). Kept so the existing test parametrization stays stable."""
+    yield
 
 
 @pytest.fixture
