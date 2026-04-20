@@ -8,7 +8,7 @@ from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import TOP_K_PER_QUERY
-from app.services.db_conn import COLLECTION_NAME, get_collection_count, get_vectorstore
+from app.comm.db_comm import COLLECTION_NAME, get_collection_count, get_vectorstore
 from app.services.rag import RagService
 from app.services.utils import EXPANSION_MODEL
 
@@ -29,7 +29,7 @@ class LangchainSrv(RagService):
                 page.metadata["source"] = pdf_path.name
             documents.extend(pages)
             new_num_pages[pdf_path.name] = len(pages)
-            print(f"  Loaded {pdf_path.name}: {len(pages)} page(s)")
+            LangchainSrvLogs.log_loaded_pdf(pdf_path.name, len(pages))
 
         # --- Chunk ---
         splitter = RecursiveCharacterTextSplitter(
@@ -37,14 +37,14 @@ class LangchainSrv(RagService):
             chunk_overlap=CHUNK_OVERLAP,
         )
         chunks = splitter.split_documents(documents)
-        self._log_generated(chunks)
+        LangchainSrvLogs.log_generated(chunks)
 
         # --- Generate vector embeedings and store in DB ---
         vectorstore = get_vectorstore()
         vectorstore.add_documents(chunks)
 
-        self._log_count(get_collection_count())
-        
+        LangchainSrvLogs.log_count(get_collection_count())
+
         return new_num_pages
 
     def _retrieve(
@@ -52,14 +52,11 @@ class LangchainSrv(RagService):
         query: str,
         where: dict | None = None,
         where_document: dict | None = None,
-    ) -> list[Document]:        
-        print(
-            f"[retrieve] cosine, top-{TOP_K_PER_QUERY} "
-            f"(where={where} where_document={where_document}):"
-        )
-        
+    ) -> list[Document]:
+        LangchainSrvLogs.log_retrieve_start(where, where_document)
+
         vectorstore = get_vectorstore()
-        
+
         # --- Set metadata filters ---
         kwargs: dict = {"k": TOP_K_PER_QUERY}
         if where is not None:
@@ -68,14 +65,9 @@ class LangchainSrv(RagService):
             kwargs["where_document"] = where_document
         # --- Run similarity search
         hits = vectorstore.similarity_search_with_score(query, **kwargs)
-        
-        print(f"  → {len(hits)} hits:")
-        for r, (doc, dist) in enumerate(hits, 1):
-            src = doc.metadata.get("source", "?")
-            page = doc.metadata.get("page", "?")
-            snippet = doc.page_content[:80].replace("\n", " ")
-            print(f"    {r}. cos_dist={dist:.4f} source={src} page={page} | {snippet}…")
-        
+
+        LangchainSrvLogs.log_retrieve_hits(hits)
+
         return [doc for doc, _ in hits]
 
     def _generate(self, question: str, docs: list[Document]) -> str:
@@ -100,25 +92,53 @@ class LangchainSrv(RagService):
         )
         user = f"CONTEXTO:\n{context}\n\n" f"<question>{safe_question}</question>"
 
-        print(f"[generate] prompt → model={EXPANSION_MODEL}")
-        print("----- SYSTEM -----")
-        print(system)
-        print("----- USER -----")
-        print(user)
-        print("------------------")
+        LangchainSrvLogs.log_generate_prompt(system, user)
 
         llm = ChatOpenAI(model=EXPANSION_MODEL, temperature=0.2)
         response = llm.invoke(
             [SystemMessage(content=system), HumanMessage(content=user)]
         )
         return str(response.content)
-    
-    # ---------- Utils ----------
-    
-    def _log_generated(self, chunks):
+
+
+class LangchainSrvLogs:
+    """Logging helpers for LangchainSrv."""
+
+    @staticmethod
+    def log_loaded_pdf(name: str, count: int) -> None:
+        print(f"  Loaded {name}: {count} page(s)")
+
+    @staticmethod
+    def log_generated(chunks) -> None:
         print(f"Generated {len(chunks)} chunk(s)")
-    
-    def _log_count(self, count):
+
+    @staticmethod
+    def log_count(count: int) -> None:
         print(
             f"Collection '{COLLECTION_NAME}' has {count} embedding(s) (space=cosine)."
         )
+
+    @staticmethod
+    def log_retrieve_start(where, where_document) -> None:
+        print(
+            f"[retrieve] cosine, top-{TOP_K_PER_QUERY} "
+            f"(where={where} where_document={where_document}):"
+        )
+
+    @staticmethod
+    def log_retrieve_hits(hits: list[tuple[Document, float]]) -> None:
+        print(f"  → {len(hits)} hits:")
+        for r, (doc, dist) in enumerate(hits, 1):
+            src = doc.metadata.get("source", "?")
+            page = doc.metadata.get("page", "?")
+            snippet = doc.page_content[:80].replace("\n", " ")
+            print(f"    {r}. cos_dist={dist:.4f} source={src} page={page} | {snippet}…")
+
+    @staticmethod
+    def log_generate_prompt(system: str, user: str) -> None:
+        print(f"[generate] prompt → model={EXPANSION_MODEL}")
+        print("----- SYSTEM -----")
+        print(system)
+        print("----- USER -----")
+        print(user)
+        print("------------------")

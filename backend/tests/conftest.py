@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage
 from langchain_openai import OpenAIEmbeddings
 
 from app.config import ENV_PATH
-from app.services.db_conn import (
+from app.comm.db_comm import (
     CHROMA_HOST,
     CHROMA_PORT,
     COLLECTION_METADATA,

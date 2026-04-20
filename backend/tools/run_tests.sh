@@ -12,7 +12,7 @@ BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${BACKEND_DIR}"
 
-uv run pytest app/tests/ \
+uv run pytest tests/ \
   --cov=app.services.utils \
   --cov=app.services.rag \
   --cov=app.services.langchain_rag \
