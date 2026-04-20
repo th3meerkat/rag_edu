@@ -5,9 +5,30 @@ import re
 from pathlib import Path
 
 import pytest
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.documents import Document
 
+from app.services.langchain_rag.memory import MAX_MESSAGES, clear_history
 from app.services.langchain_rag.service import LangchainSrv
+
+
+# ---------- helpers ----------
+
+def _question_msg(messages: list[BaseMessage]) -> HumanMessage:
+    """Return the HumanMessage holding the nonced question (last one in the
+    prompt). Using a content-based finder instead of a fixed index so tests
+    don't break when the MessagesPlaceholder expands with prior turns."""
+    for m in reversed(messages):
+        if isinstance(m, HumanMessage) and m.content.startswith("<question_"):
+            return m
+    raise AssertionError("no nonced question HumanMessage found")
+
+
+def _context_msg(messages: list[BaseMessage]) -> HumanMessage:
+    for m in messages:
+        if isinstance(m, HumanMessage) and m.content.startswith("CONTEXTO:"):
+            return m
+    raise AssertionError("no CONTEXTO HumanMessage found")
 
 
 # ---------- _ingest ----------
@@ -104,20 +125,21 @@ class TestGenerate:
         self, echo_chat_openai, fake_docs
     ):
         """Structural separation: question lives in its own HumanMessage,
-        apart from the context (layer 1 of the anti-injection defense)."""
+        apart from the context (layer 1 of the anti-injection defense).
+        With an empty history, the MessagesPlaceholder expands to nothing."""
         srv = LangchainSrv()
         srv._generate("mi pregunta", fake_docs)
 
         llm = echo_chat_openai["app.services.langchain_rag.service"]
         assert len(llm.invoke_calls) == 1
         messages = llm.invoke_calls[0]
-        assert len(messages) == 3  # system + context + question
+        assert len(messages) == 3  # system + context + question (history empty)
 
-        context_content = messages[1].content
+        context_content = _context_msg(messages).content
         for doc in fake_docs:
             assert doc.page_content in context_content
 
-        question_content = messages[2].content
+        question_content = _question_msg(messages).content
         assert "mi pregunta" in question_content
         # Question is wrapped with a random-nonce delimiter (layer 2).
         m = re.match(
@@ -136,7 +158,7 @@ class TestGenerate:
         llm = echo_chat_openai["app.services.langchain_rag.service"]
         nonces = []
         for call in llm.invoke_calls:
-            m = re.match(r"<question_([a-f0-9]+)>", call[2].content)
+            m = re.match(r"<question_([a-f0-9]+)>", _question_msg(call).content)
             assert m is not None
             nonces.append(m.group(1))
         assert nonces[0] != nonces[1]
@@ -152,7 +174,7 @@ class TestGenerate:
         srv._generate(malicious, fake_docs)
 
         llm = echo_chat_openai["app.services.langchain_rag.service"]
-        question_content = llm.invoke_calls[0][2].content
+        question_content = _question_msg(llm.invoke_calls[0]).content
         m = re.match(
             r"<question_([a-f0-9]+)>\n(.*)\n</question_\1>",
             question_content,
@@ -172,7 +194,7 @@ class TestGenerate:
         srv._generate("hola\x00mundo", fake_docs)
 
         llm = echo_chat_openai["app.services.langchain_rag.service"]
-        question_content = llm.invoke_calls[0][2].content
+        question_content = _question_msg(llm.invoke_calls[0]).content
         assert "\x00" not in question_content
         assert "holamundo" in question_content
 
@@ -182,5 +204,70 @@ class TestGenerate:
         srv = LangchainSrv()
         srv._generate("x", [])
         llm = echo_chat_openai["app.services.langchain_rag.service"]
-        context_content = llm.invoke_calls[0][1].content
+        context_content = _context_msg(llm.invoke_calls[0]).content
         assert "(sin contexto)" in context_content
+
+
+# ---------- short-term memory ----------
+
+class TestMemory:
+    def test_second_turn_sees_first_turn_in_history(self, echo_chat_openai, fake_docs):
+        """Turn 2 must receive Turn 1's Human+AI pair as history."""
+        srv = LangchainSrv()
+        srv._generate("primera pregunta", fake_docs)
+        srv._generate("segunda pregunta", fake_docs)
+
+        llm = echo_chat_openai["app.services.langchain_rag.service"]
+        second_call = llm.invoke_calls[1]
+
+        # History messages sit between the system prompt and the current
+        # context/question. Pull them out by type ordering.
+        history = [
+            m for m in second_call
+            if isinstance(m, (HumanMessage, AIMessage))
+            and not m.content.startswith("CONTEXTO:")
+            and not m.content.startswith("<question_")
+        ]
+        assert len(history) == 2
+        assert isinstance(history[0], HumanMessage)
+        assert history[0].content == "primera pregunta"  # sanitized, no nonce
+        assert isinstance(history[1], AIMessage)
+        assert history[1].content == "respuesta-eco"  # raw AI output
+
+    def test_history_is_trimmed_to_last_5_turns(self, echo_chat_openai, fake_docs):
+        """After 7 turns, only the last 5 should be visible to the prompt
+        (MAX_MESSAGES = 10 messages = 5 turns)."""
+        srv = LangchainSrv()
+        for i in range(7):
+            srv._generate(f"pregunta {i}", fake_docs)
+
+        llm = echo_chat_openai["app.services.langchain_rag.service"]
+        last_call = llm.invoke_calls[-1]
+
+        history = [
+            m for m in last_call
+            if isinstance(m, (HumanMessage, AIMessage))
+            and not m.content.startswith("CONTEXTO:")
+            and not m.content.startswith("<question_")
+        ]
+        assert len(history) <= MAX_MESSAGES
+        # At the 7th invocation (turn index 6), the prompt sees the history
+        # built up to turn 5 (= turns 0..5, 12 messages) trimmed to the last
+        # 10. So turn 0 falls out of the window; turn 1 is the oldest visible.
+        human_contents = [
+            m.content for m in history if isinstance(m, HumanMessage)
+        ]
+        assert "pregunta 0" not in human_contents
+        assert "pregunta 1" in human_contents
+        assert "pregunta 5" in human_contents
+
+    def test_clear_history_resets_conversation(self, echo_chat_openai, fake_docs):
+        srv = LangchainSrv()
+        srv._generate("turno antes del reset", fake_docs)
+        clear_history()
+        srv._generate("turno después del reset", fake_docs)
+
+        llm = echo_chat_openai["app.services.langchain_rag.service"]
+        second_call = llm.invoke_calls[1]
+        # History should be empty → only system + context + question.
+        assert len(second_call) == 3

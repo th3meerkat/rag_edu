@@ -125,14 +125,18 @@ def echo_chat_openai(monkeypatch):
     )
 
     # The service caches its LLM/chain in lru_cache; clear so the patch applies.
+    # Also wipe the short-term memory singleton so history doesn't leak across tests.
     from app.services.langchain_rag import service as _svc
+    from app.services.langchain_rag.memory import clear_history
     _svc._get_llm.cache_clear()
     _svc._get_chain.cache_clear()
+    clear_history()
 
     yield created
 
     _svc._get_llm.cache_clear()
     _svc._get_chain.cache_clear()
+    clear_history()
 
 
 @pytest.fixture

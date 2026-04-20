@@ -10,6 +10,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -19,6 +20,11 @@ from app.services.langchain_rag.db_comm import (
     EMBEDDING_MODEL,
     get_collection_count,
     get_vectorstore,
+)
+from app.services.langchain_rag.memory import (
+    SESSION_ID,
+    build_history_trimmer,
+    get_session_history,
 )
 from app.services.langchain_rag.prompts import build_prompt
 from app.services.rag import RagService
@@ -63,14 +69,32 @@ def _get_llm() -> ChatOpenAI:
 
 @lru_cache(maxsize=1)
 def _get_chain() -> Runnable:
-    """LCEL chain: prompt | llm | parser.
+    """LCEL chain with short-term memory: trim_history | prompt | llm | parser,
+    wrapped in `RunnableWithMessageHistory` so previous turns are auto-injected.
 
-    Using LCEL instead of manual `llm.invoke([messages])` gives us streaming,
-    ainvoke, batch, LangSmith tracing, with_retry and with_fallbacks for free.
-    `StrOutputParser` also handles AIMessage.content when it's a list of
-    content blocks (multimodal, tool-calls) — `str(response.content)` does not.
+    The shape, in order:
+      1. `build_history_trimmer()` is a RunnablePassthrough.assign that slices
+         the `history` key to the last N messages before the prompt consumes it.
+         Doing it as a Runnable step (rather than truncating the store) keeps
+         the store pure and makes the trim visible in LangSmith traces.
+      2. `build_prompt()` expands the MessagesPlaceholder("history") with the
+         (already trimmed) prior turns, between the system message and the
+         current context/question.
+      3. `llm | StrOutputParser()` as before.
+      4. `RunnableWithMessageHistory` intercepts the invoke:
+         - On input: fetches the history via `get_session_history(session_id)`
+           and injects it into the chain as the `history` key.
+         - On output: appends the new Human (from `input_messages_key`) and the
+           new AI (the parser's str output) to that same history.
     """
-    return build_prompt() | _get_llm() | StrOutputParser()
+    inner_chain = build_history_trimmer() | build_prompt() | _get_llm() | StrOutputParser()
+
+    return RunnableWithMessageHistory(
+        inner_chain,
+        get_session_history,
+        input_messages_key="question",
+        history_messages_key="history",
+    )
 
 
 def _sanitize_question(question: str) -> str:
@@ -198,8 +222,11 @@ class LangchainSrv(RagService):
             EXPANSION_MODEL, nonce, len(safe_question),
         )
 
+        # `RunnableWithMessageHistory` requires a session_id via config, even
+        # though our factory ignores it — we only have one global conversation.
         return _get_chain().invoke(
-            {"context": context, "nonce": nonce, "question": safe_question}
+            {"context": context, "nonce": nonce, "question": safe_question},
+            config={"configurable": {"session_id": SESSION_ID}},
         )
 
     # ---------- Langchain-native override of the parent's template method ----------
