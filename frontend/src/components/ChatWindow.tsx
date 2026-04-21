@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
+import type { Engine } from '../api'
 
 export type ChatMessage = {
   role: 'user' | 'assistant'
   text: string
+  engine?: Engine
 }
 
 type ChatWindowProps = {
@@ -38,7 +40,8 @@ type BubbleProps = {
 }
 
 /**
- * Single chat bubble. Styling varies by role.
+ * Single chat bubble. Styling varies by role. Assistant bubbles show a small
+ * pill indicating which backend engine produced the reply.
  */
 function Bubble({ message }: BubbleProps) {
   const isUser = message.role === 'user'
@@ -48,10 +51,28 @@ function Bubble({ message }: BubbleProps) {
     : 'bg-white text-slate-900 border border-slate-200 rounded-bl-sm'
 
   return (
-    <div
-      className={`max-w-[75%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm shadow-sm ${alignment} ${colors}`}
-    >
-      {message.text}
+    <div className={`flex max-w-[75%] flex-col gap-1 ${alignment}`}>
+      <div
+        className={`whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm shadow-sm ${colors}`}
+      >
+        {message.text}
+      </div>
+      {!isUser && message.engine && <EngineBadge engine={message.engine} />}
     </div>
+  )
+}
+
+type EngineBadgeProps = {
+  engine: Engine
+}
+
+/**
+ * Small monochrome pill showing which backend engine handled the reply.
+ */
+function EngineBadge({ engine }: EngineBadgeProps) {
+  return (
+    <span className="self-start rounded-full bg-slate-200 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-600">
+      {engine}
+    </span>
   )
 }

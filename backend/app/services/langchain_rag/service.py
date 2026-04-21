@@ -1,10 +1,8 @@
 import logging
-import re
 import secrets
-import unicodedata
-from collections import Counter
 from functools import cached_property, lru_cache
 from pathlib import Path
+from typing import ClassVar
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
@@ -14,7 +12,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from app.config import TOP_K_FINAL, TOP_K_PER_QUERY
+from app.config import EXPANSION_MODEL, TOP_K_FINAL, TOP_K_PER_QUERY
 from app.services.langchain_rag.db_comm import (
     COLLECTION_NAME,
     EMBEDDING_MODEL,
@@ -27,13 +25,15 @@ from app.services.langchain_rag.memory import (
     get_session_history,
 )
 from app.services.langchain_rag.prompts import build_prompt
-from app.services.rag import RagService
-from app.services.utils import (
-    EXPANSION_MODEL,
-    build_filter,
-    detect_positional,
-    load_manifest,
+from app.services.langchain_rag.utils import (
+    NONCE_BYTES,
+    build_chunk_ids,
+    format_docs,
+    rerank,
+    sanitize_question,
 )
+from app.services.rag import RagService
+from app.services.utils import build_filter, detect_positional, load_manifest
 
 # Chunking in tokens (not characters) aligns chunks with the embedding model's
 # tokenizer: `text-embedding-3-small` accepts 8191 tokens per input, so 500
@@ -48,14 +48,6 @@ CHUNK_OVERLAP_TOKENS = 100
 # for `text-embedding-3-small`: well below the 2048-input API limit and small
 # enough that a retry after a transient failure is cheap.
 INGEST_BATCH_SIZE = 256
-
-# Prompt-injection defense without a second LLM:
-#  - Layer 1: the question travels in its OWN HumanMessage (role separation).
-#  - Layer 2: the question is wrapped with <question_{nonce}>...</question_{nonce}>;
-#    the nonce is fresh per request so an attacker can't close the block.
-#  - Layer 3: sanitize input (strip control chars, collapse whitespace, cap len).
-NONCE_BYTES = 8
-MAX_QUESTION_CHARS = 2000
 
 logger = logging.getLogger(__name__)
 
@@ -97,47 +89,9 @@ def _get_chain() -> Runnable:
     )
 
 
-def _sanitize_question(question: str) -> str:
-    """Strip control characters, collapse whitespace, cap length."""
-    cleaned = "".join(
-        ch for ch in question
-        if unicodedata.category(ch)[0] != "C" or ch in "\t\n"
-    )
-    cleaned = re.sub(r"[ \t]+", " ", cleaned).strip()
-    return cleaned[:MAX_QUESTION_CHARS]
+class LangchainSrv(RagService[Document]):
+    engine_name: ClassVar[str] = "langchain"
 
-
-def _format_docs(docs: list[Document]) -> str:
-    if not docs:
-        return "(sin contexto)"
-    blocks = []
-    for i, d in enumerate(docs, 1):
-        src = d.metadata.get("source", "?")
-        page = d.metadata.get("page", "?")
-        blocks.append(f"[{i}] source={src} page={page}\n{d.page_content}")
-    return "\n---\n".join(blocks)
-
-
-def _build_chunk_ids(chunks: list[Document]) -> list[str]:
-    """Deterministic IDs: `{source}:{page}:{chunk_idx_within_page}`.
-
-    Re-ingesting the same PDF upserts instead of duplicating. Indexing per page
-    (rather than globally) means adding a page to a PDF doesn't invalidate the
-    IDs of chunks from unchanged pages.
-    """
-    per_page: Counter = Counter()
-    ids: list[str] = []
-    for c in chunks:
-        source = c.metadata.get("source", "unknown")
-        page = c.metadata.get("page", 0)
-        key = (source, page)
-        idx = per_page[key]
-        per_page[key] += 1
-        ids.append(f"{source}:{page}:{idx}")
-    return ids
-
-
-class LangchainSrv(RagService):
     def _ingest(self, pdf_paths: list[Path]) -> dict[str, int]:
         # --- Open and parse files ---
         documents: list[Document] = []
@@ -164,7 +118,7 @@ class LangchainSrv(RagService):
         # Deterministic IDs (upsert on reingest) and batching (cap each OpenAI
         # embeddings request) are tightly coupled: we already need to iterate
         # to assign IDs, so slicing into batches is free in the same loop.
-        ids = _build_chunk_ids(chunks)
+        ids = build_chunk_ids(chunks)
         vectorstore = get_vectorstore()
         for start in range(0, len(chunks), INGEST_BATCH_SIZE):
             end = start + INGEST_BATCH_SIZE
@@ -213,9 +167,9 @@ class LangchainSrv(RagService):
         # 2) Random-nonce delimiter — <question_NONCE>...</question_NONCE> with
         #    a per-request nonce, so an attacker can't close the block.
         # 3) Sanitization — strip control chars, collapse whitespace, cap length.
-        safe_question = _sanitize_question(question)
+        safe_question = sanitize_question(question)
         nonce = secrets.token_hex(NONCE_BYTES)
-        context = _format_docs(docs)
+        context = format_docs(docs)
 
         logger.info(
             "[generate] model=%s nonce=%s question_len=%d",
@@ -229,19 +183,16 @@ class LangchainSrv(RagService):
             config={"configurable": {"session_id": SESSION_ID}},
         )
 
-    # ---------- Langchain-native override of the parent's template method ----------
+    # ---------- Langchain-native implementation of the abstract template method ----------
     #
-    # Rationale: the parent implements `query` imperatively (good default for a
-    # framework-neutral base). Here we compose the exact same pipeline as a
-    # single LCEL Runnable so the pipeline *itself* is a first-class Langchain
-    # object — callers gain `.stream(msg)`, `.ainvoke(msg)`, `.batch([msgs])`,
-    # `.with_retry()`, `.with_fallbacks()`, and per-step LangSmith spans for
-    # free, without any extra code. Subclass hooks (`_retrieve`, `_generate`,
-    # plus the parent's `_expand_queries`, `_rrf`, `_rerank`) are still invoked
-    # inside each step, so the extension points survive polymorphism.
+    # The five-step strategy documented on `RagService.query` is composed here
+    # as a single LCEL Runnable so the pipeline *itself* is a first-class
+    # LangChain object — callers gain `.stream(msg)`, `.ainvoke(msg)`,
+    # `.batch([msgs])`, `.with_retry()`, `.with_fallbacks()`, and per-step
+    # LangSmith spans for free, without any extra code.
 
     def query(self, msg: str) -> str:
-        """Full RAG pipeline as a LCEL Runnable. Polymorphic override."""
+        """Full RAG pipeline as an LCEL Runnable. See `RagService.query`."""
         logger.info("[query] user msg: %r", msg)
         return self._query_chain.invoke(msg)
 
@@ -281,7 +232,7 @@ class LangchainSrv(RagService):
         if intent is None:
             logger.info("[positional] no positional pattern detected")
             return {"msg": msg, "where": None, "where_document": None}
-        manifest = load_manifest()
+        manifest = load_manifest(self.engine_name)
         where, where_doc = build_filter(intent, manifest)
         logger.info(
             "[positional] intent=%s manifest_sources=%s where=%s where_document=%s",
@@ -292,11 +243,11 @@ class LangchainSrv(RagService):
     def _retrieve_and_fuse(self, state: dict) -> list[Document]:
         """Expand the query, fan out retrieval via `.batch()`, then RRF-fuse.
 
-        `.batch()` is LCEL's native parallel dispatch — once `_expand_queries`
+        `.batch()` is LCEL's native parallel dispatch — once query expansion
         is re-enabled, the N retrievals run concurrently (threadpool for sync
         / asyncio for async) without us writing a single await or future.
         """
-        queries = self._expand_queries(state["msg"])
+        queries = [state["msg"]]  # expansion disabled; see utils.expand_queries.
         where, where_doc = state["where"], state["where_document"]
 
         def retrieve_one(q: str) -> list[Document]:
@@ -304,12 +255,22 @@ class LangchainSrv(RagService):
 
         retriever: Runnable[str, list[Document]] = RunnableLambda(retrieve_one)
         ranked_lists = retriever.batch(queries)
-        
-        # --- Reciprocal Rank Fusion (RRF) ---
-        return self._rrf(ranked_lists)
+
+        # Single query → RRF is a no-op; skip to avoid an unnecessary pass.
+        if len(ranked_lists) == 1:
+            return ranked_lists[0]
+
+        from app.services.langchain_rag.utils import rrf_fuse_docs
+        fused = rrf_fuse_docs(ranked_lists)
+        return [doc for _, doc in fused]
 
     def _rerank_candidates(self, state: dict) -> list[Document]:
-        reranked = self._rerank(state["msg"], state["candidates"], top_n=TOP_K_FINAL)
+        reranked = rerank(state["msg"], state["candidates"], top_n=TOP_K_FINAL)
+        logger.info("[rerank] top-%d:", TOP_K_FINAL)
+        for r, (doc, score) in enumerate(reranked, 1):
+            src = doc.metadata.get("source", "?")
+            page = doc.metadata.get("page", "?")
+            logger.info("  %d. rerank_score=%.4f source=%s page=%s", r, score, src, page)
         return [doc for doc, _ in reranked]
 
     def _generate_answer(self, state: dict) -> str:

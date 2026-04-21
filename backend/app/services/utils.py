@@ -1,15 +1,30 @@
+"""Framework-agnostic utilities shared by every RAG engine.
+
+Nothing here imports LangChain / LlamaIndex: each engine wraps these primitives
+with its own native types (see `langchain_rag/utils.py` and
+`llamaindex_rag/utils.py`).
+"""
+from __future__ import annotations
+
 import json
 import math
 import re
 from pathlib import Path
+from typing import Callable, TypeVar
 
 import httpx
-from langchain_core.documents import Document
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from app.config import EXPANSION_MODEL, INGESTED_MANIFEST, N_EXPANDED, POSITIONAL_WINDOW_PCT, RERANKER_MODEL, RERANKER_URL, RRF_K, TOP_K_AFTER_FUSION, TOP_K_FINAL
+from app.config import (
+    DATA_DIR,
+    POSITIONAL_WINDOW_PCT,
+    RERANKER_MODEL,
+    RERANKER_URL,
+    RRF_K,
+    TOP_K_AFTER_FUSION,
+    TOP_K_FINAL,
+)
 
+T = TypeVar("T")
 
 # (kind, value): "pagina"|"capitulo" llevan N; "final"|"principio" llevan None.
 PositionalIntent = tuple[str, int | None]
@@ -26,17 +41,29 @@ _PRINCIPIO_RE = re.compile(
 )
 
 
-def load_manifest() -> dict[str, int]:
+# ---------- Per-engine manifest I/O ----------
+
+def manifest_path(engine: str) -> Path:
+    """Path to the ingestion manifest for a given engine (one file per engine)."""
+    return DATA_DIR / f"ingested_{engine}.json"
+
+
+def load_manifest(engine: str) -> dict[str, int]:
     """Read the ingestion manifest ({source: num_pages}); return {} if missing."""
-    if INGESTED_MANIFEST.exists():
-        return json.loads(INGESTED_MANIFEST.read_text())
+    p = manifest_path(engine)
+    if p.exists():
+        return json.loads(p.read_text())
     return {}
 
 
-def save_manifest(manifest: dict[str, int]) -> None:
+def save_manifest(engine: str, manifest: dict[str, int]) -> None:
     """Persist the ingestion manifest as JSON."""
-    INGESTED_MANIFEST.write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
+    manifest_path(engine).write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False)
+    )
 
+
+# ---------- Positional detection + Chroma filter building ----------
 
 def detect_positional(msg: str) -> PositionalIntent | None:
     """Detect a positional pattern in the query (page/chapter N, ending, beginning)."""
@@ -57,7 +84,11 @@ def detect_positional(msg: str) -> PositionalIntent | None:
 def build_filter(
     intent: PositionalIntent, manifest: dict[str, int]
 ) -> tuple[dict | None, dict | None]:
-    """Translate a positional intent into a Chroma filter (where, where_document)."""
+    """Translate a positional intent into a Chroma filter (where, where_document).
+
+    Both `langchain-chroma` and `llama-index-vector-stores-chroma` accept the
+    same raw Chroma filter dialect, so this helper stays framework-agnostic.
+    """
     kind, value = intent
 
     if kind == "pagina":
@@ -98,58 +129,51 @@ def build_filter(
     return (None, None)
 
 
-def expand_queries(msg: str) -> list[str]:
-    """Generate N paraphrases of the query via LLM to improve retrieval."""
-    llm = ChatOpenAI(
-        model=EXPANSION_MODEL,
-        temperature=0.2,
-        model_kwargs={"response_format": {"type": "json_object"}},
-    )
-    system = (
-        f"Eres un asistente que reescribe consultas para mejorar la recuperación. "
-        f"Genera exactamente {N_EXPANDED} consultas alternativas (paráfrasis o ampliaciones "
-        f"con sinónimos o enfoques distintos) que preserven el idioma de la consulta del usuario. "
-        f'Devuelve ESTRICTAMENTE un JSON con la forma: {{"queries": ["q1", "q2"]}}. Sin texto extra.'
-    )
-    response = llm.invoke([SystemMessage(content=system), HumanMessage(content=msg)])
-    data = json.loads(str(response.content))
-    queries = data.get("queries", [])
-    if len(queries) < N_EXPANDED:
-        raise ValueError(f"Expansion returned {len(queries)} queries, expected {N_EXPANDED}")
-    return queries[:N_EXPANDED]
-
+# ---------- Generic Reciprocal Rank Fusion ----------
 
 def rrf_fuse(
-    ranked_lists: list[list[Document]], k: int = RRF_K, top_n: int = TOP_K_AFTER_FUSION
-) -> list[tuple[float, Document]]:
-    """Fuse several ranked lists into one via Reciprocal Rank Fusion."""
+    ranked_lists: list[list[T]],
+    key_fn: Callable[[T], str],
+    k: int = RRF_K,
+    top_n: int = TOP_K_AFTER_FUSION,
+) -> list[tuple[float, T]]:
+    """Fuse several ranked lists into one via Reciprocal Rank Fusion.
+
+    `key_fn` is used to deduplicate across lists (same key → same entry).
+    Pass a framework-specific projection (e.g. LangChain `doc.page_content`
+    or LlamaIndex `node.node.text`) from the caller.
+    """
     # Reciprocal Rank Fusion (Cormack, Clarke & Büttcher, 2009).
     # Combines multiple ranked lists into one by summing 1 / (k + rank) across
-    # the lists where the same document appears. k=60 is the widely used default.
-    # Deduplication key: page_content (identical chunks fuse into one entry).
-    scores: dict[str, tuple[float, Document]] = {}
+    # the lists where the same item appears. k=60 is the widely used default.
+    scores: dict[str, tuple[float, T]] = {}
     for ranked in ranked_lists:
-        for rank_idx, doc in enumerate(ranked):
-            key = doc.page_content
-            prev_score, _ = scores.get(key, (0.0, doc))
-            scores[key] = (prev_score + 1.0 / (k + rank_idx + 1), doc)
+        for rank_idx, item in enumerate(ranked):
+            key = key_fn(item)
+            prev_score, _ = scores.get(key, (0.0, item))
+            scores[key] = (prev_score + 1.0 / (k + rank_idx + 1), item)
 
     ordered = sorted(scores.values(), key=lambda x: x[0], reverse=True)
     return ordered[:top_n]
 
 
-def rerank(
-    query: str, docs: list[Document], top_n: int = TOP_K_FINAL
-) -> list[tuple[Document, float]]:
-    """Rerank the docs via the reranker service and return the top_n."""
-    if not docs:
+# ---------- Generic reranker HTTP call ----------
+
+def rerank_texts(
+    query: str, texts: list[str], top_n: int = TOP_K_FINAL
+) -> list[tuple[int, float]]:
+    """Rerank a list of raw text chunks via the Infinity service.
+
+    Returns pairs `(original_index, relevance_score)` ordered by score desc.
+    Callers map the indexes back to their framework-native objects.
+    """
+    if not texts:
         return []
-    documents = [d.page_content for d in docs]
     resp = httpx.post(
         f"{RERANKER_URL}/rerank",
         json={
             "query": query,
-            "documents": documents,
+            "documents": texts,
             "model": RERANKER_MODEL,
         },
         timeout=120.0,
@@ -159,4 +183,4 @@ def rerank(
     results = resp.json()["results"]
     results.sort(key=lambda x: x["relevance_score"], reverse=True)
     top = results[:top_n]
-    return [(docs[item["index"]], item["relevance_score"]) for item in top]
+    return [(item["index"], item["relevance_score"]) for item in top]

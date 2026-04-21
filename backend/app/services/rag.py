@@ -1,41 +1,59 @@
+"""Framework-agnostic base class for the RAG services.
+
+Keeps the *template method* hierarchy but stays completely independent from
+LangChain and LlamaIndex: the chunk type each engine produces is a TypeVar `T`,
+and the only I/O the base class does is globbing PDFs and reading/writing the
+per-engine ingestion manifest.
+"""
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import ClassVar, Generic, TypeVar
 
-from langchain_core.documents import Document
-
-from app.config import DATA_DIR, TOP_K_FINAL
-from app.services.utils import (
-    build_filter,
-    detect_positional,
-    load_manifest,
-    rerank,
-    save_manifest,
-)
-
+from app.config import DATA_DIR
+from app.services.utils import load_manifest, save_manifest
 
 logger = logging.getLogger(__name__)
 
+# Framework-native chunk / document / node type (e.g. LangChain `Document`,
+# LlamaIndex `NodeWithScore`). The base class never inspects `T`.
+T = TypeVar("T")
 
-class RagService(ABC):
+
+class RagService(ABC, Generic[T]):
     """Template Method for a RAG pipeline.
 
-    Subclasses implement the framework-specific hooks:
-      - _retrieve: vector search against the concrete vector store
-      - _generate: LLM call with the retrieved context
-      - _ingest:   PDF loading/chunking/embedding into the vector store
+    Concrete subclasses pick a framework (LangChain, LlamaIndex, …) and plug
+    it into three hooks:
+      - `_ingest`:   PDF loading/chunking/embedding into the vector store.
+      - `_retrieve`: filter-aware vector search; returns framework-native chunks.
+      - `_generate`: LLM call that turns the reranked chunks into the answer.
+
+    `run_ingestion` is a concrete template method reused by every engine.
+    `query` is *intentionally abstract* — see its docstring below.
     """
 
-    # ---------- Template methods (public) ----------
+    #: Short engine identifier. Drives the manifest filename and is echoed back
+    #: to the client (e.g. for per-message badges in the UI).
+    engine_name: ClassVar[str]
+
+    # ---------- Template method (concrete) ----------
 
     def run_ingestion(self) -> None:
-        """Ingest new PDFs according to the manifest; delegates the heavy lifting to _ingest."""
+        """Ingest new PDFs according to the engine's manifest.
+
+        Generic across engines: discover PDFs on disk, diff against the
+        per-engine manifest, delegate the heavy lifting to `_ingest`, then
+        merge the new page counts back into the manifest.
+        """
         pdf_paths = sorted(DATA_DIR.glob("*.pdf"))
         if not pdf_paths:
             logger.info("No PDFs found in %s", DATA_DIR)
             return
 
-        manifest = load_manifest()
+        manifest = load_manifest(self.engine_name)
         new_pdf_paths = [p for p in pdf_paths if p.name not in manifest]
         if not new_pdf_paths:
             logger.info("No new PDFs to ingest (%d already processed)", len(pdf_paths))
@@ -48,52 +66,65 @@ class RagService(ABC):
 
         new_num_pages = self._ingest(new_pdf_paths)
         manifest.update(new_num_pages)
-        save_manifest(manifest)
+        save_manifest(self.engine_name, manifest)
         logger.info("Ingestion complete.")
 
+    # ---------- Template method (abstract — strategy shared, composition is not) ----------
+
+    @abstractmethod
     def query(self, msg: str) -> str:
-        """Full pipeline: detect → retrieve → (rrf) → rerank → generate."""
-        logger.info("[query] user msg: %r", msg)
+        """Run the end-to-end RAG pipeline and return the final answer.
 
-        # --- Query expansion ---
-        queries = self._expand_queries(msg)
+        Every engine implements this in its own framework-idiomatic way, but
+        they all follow the **same high-level five-step strategy**:
 
-        intent = detect_positional(msg)
-        where: dict | None = None
-        where_doc: dict | None = None
-        if intent is not None:
-            manifest = load_manifest()
-            where, where_doc = build_filter(intent, manifest)
-            logger.info(
-                "[positional] intent=%s manifest_sources=%s where=%s where_document=%s",
-                intent, list(manifest), where, where_doc,
-            )
-        else:
-            logger.info("[positional] no positional pattern detected")
+          1. **Expand** — paraphrase the user query into N variants. A single
+             phrasing can miss relevant chunks; asking the same thing several
+             ways widens recall for free.
+          2. **Retrieve** — per query, a filter-aware vector search. A
+             lightweight rules-based parser turns utterances like
+             "página 5", "capítulo 3", "al final", "al principio" into
+             Chroma `where` / `where_document` constraints, so positional
+             questions target the right region of the PDFs instead of
+             relying on semantic luck. See `utils.detect_positional` /
+             `utils.build_filter`.
+          3. **Fuse** — Reciprocal Rank Fusion (RRF) over the N ranked lists
+             so chunks that surface near the top for *several* expansions
+             bubble up and one-off noise falls.
+          4. **Rerank** — a cross-encoder rerank (Infinity service) on the
+             fused candidates. Trades a slow pass over a small set for a
+             sharply better ordering than cosine alone.
+          5. **Generate** — call the chat LLM with:
+               (a) a system prompt carrying a layered anti-prompt-injection
+                   defense: the user question travels isolated in its own
+                   message, wrapped with a per-request random NONCE the
+                   attacker cannot close; sanitization strips control chars
+                   and caps length.
+               (b) a short-term conversational memory window (last ~5 turns)
+                   so anaphoric follow-ups ("¿y al final qué pasa?") make
+                   sense.
 
-        # --- Retrieve ---
-        ranked_lists = [
-            self._retrieve(q, where=where, where_document=where_doc) for q in queries
-        ]
+        **The strategy is shared; the composition primitives are not.**
+        Each subclass is free to realise the pipeline with whatever its
+        framework makes idiomatic:
 
-        # --- Reciprocal Rank Fusion (RRF) ---
-        candidates = self._rrf(ranked_lists)
+          - `LangchainSrv.query` composes the five steps as a single LCEL
+            `Runnable` (`prepare → retrieve/fuse → rerank → generate`),
+            unlocking `.stream` / `.ainvoke` / `.batch`, retries, fallbacks
+            and per-step LangSmith spans for free.
+          - `LlamaindexSrv.query` composes them as a native `CustomQueryEngine`
+            with a `BaseNodePostprocessor` for the rerank step and a
+            `ChatMemoryBuffer` for the memory window.
 
-        # --- ReRank ---
-        reranked = self._rerank(msg, candidates, top_n=TOP_K_FINAL)
+        Both implementations drive the same abstract hooks (`_retrieve`,
+        `_generate`) so the extension points survive polymorphism.
+        """
 
-        # --- Generate ---
-        answer = self._generate(msg, [doc for doc, _ in reranked])
-        logger.info("[generate] %s", answer)
-        return answer
-
-
-    # ---------- Hooks (abstracts) ----------
+    # ---------- Hooks (abstract) ----------
 
     @abstractmethod
     def _ingest(self, pdf_paths: list[Path]) -> dict[str, int]:
         """Load/chunk/embed the PDFs into the vector store; returns {source: num_pages}."""
-        ...
 
     @abstractmethod
     def _retrieve(
@@ -101,37 +132,9 @@ class RagService(ABC):
         query: str,
         where: dict | None = None,
         where_document: dict | None = None,
-    ) -> list[Document]:
+    ) -> list[T]:
         """Filtered vector search; returns relevant chunks ordered by score."""
-        ...
 
     @abstractmethod
-    def _generate(self, question: str, docs: list[Document]) -> str:
-        """Generate the final answer from the query and the already-reranked chunks."""
-        ...
-
-
-    # ---------- Utils ----------
-    def _expand_queries(self, msg: str):
-        # --- query expansion (desactivado temporalmente para simplificar pruebas/costo) ---
-        # from app.utils import _expand_queries
-        # expanded = _expand_queries(msg)
-        # queries = [msg, *expanded]
-        # logger.info("[expand] %d queries (1 original + %d expanded)", len(queries), len(expanded))
-        return [msg]
-
-    def _rrf(self, ranked_lists):
-        # --- RRF fusion (desactivado temporalmente; con una sola query no aporta) ---
-        # from app.utils import _rrf_fuse, TOP_K_AFTER_FUSION, RRF_K
-        # return _rrf_fuse(ranked_lists, k=RRF_K, top_n=TOP_K_AFTER_FUSION)
-        # candidates = [doc for _, doc in fused]
-        return ranked_lists[0]
-
-    def _rerank(self, query: str, docs: list[Document], top_n: int = TOP_K_FINAL) -> list[tuple[Document, float]]:
-        reranked = rerank(query, docs, top_n)
-        logger.info("[rerank] top-%d:", TOP_K_FINAL)
-        for r, (doc, score) in enumerate(reranked, 1):
-            src = doc.metadata.get("source", "?")
-            page = doc.metadata.get("page", "?")
-            logger.info("  %d. rerank_score=%.4f source=%s page=%s", r, score, src, page)
-        return reranked
+    def _generate(self, question: str, docs: list[T]) -> str:
+        """Generate the final answer from the query and the reranked chunks."""

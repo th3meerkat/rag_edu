@@ -1,5 +1,4 @@
 from enum import StrEnum
-from typing import Literal
 
 from pydantic import BaseModel
 
@@ -16,3 +15,4 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    engine: Engine

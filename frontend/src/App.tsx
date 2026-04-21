@@ -25,11 +25,17 @@ function App() {
     setLoading(true)
 
     try {
-      const reply = await sendMessage(text, engine)
-      setMessages((prev) => [...prev, { role: 'assistant', text: reply }])
+      const { reply, engine: replyEngine } = await sendMessage(text, engine)
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: reply, engine: replyEngine },
+      ])
     } catch (error) {
       console.error(error)
-      setMessages((prev) => [...prev, { role: 'assistant', text: ERROR_REPLY }])
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: ERROR_REPLY, engine },
+      ])
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,6 @@
 """Shared fixtures for regression tests.
 
-All external integrations are mocked except for real ChromaDB (test collection)
+All external integrations are mocked except for real ChromaDB (test collections)
 and OpenAI embeddings (cheap, deterministic enough for retrieval tests).
 """
 from __future__ import annotations
@@ -26,9 +26,13 @@ from app.services.langchain_rag.db_comm import (
     COLLECTION_NAME,
     EMBEDDING_MODEL,
 )
+from app.services.llamaindex_rag.db_comm import (
+    COLLECTION_NAME as LI_COLLECTION_NAME,
+)
 
 
 TEST_COLLECTION_NAME = "langchain_rag_test"
+LI_TEST_COLLECTION_NAME = "llamaindex_rag_test"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -68,14 +72,23 @@ def fake_manifest() -> dict[str, int]:
 # ---------- Filesystem fixtures ----------
 
 @pytest.fixture
-def temp_manifest_path(monkeypatch, tmp_path) -> Path:
-    """Redirect INGESTED_MANIFEST to a tmp_path for isolated I/O tests."""
-    fake_path = tmp_path / "ingested.json"
-    monkeypatch.setattr("app.services.utils.INGESTED_MANIFEST", fake_path)
-    return fake_path
+def manifest_dir(monkeypatch, tmp_path) -> Path:
+    """Redirect the shared `DATA_DIR` used by the manifest helpers to tmp_path."""
+    monkeypatch.setattr("app.services.utils.DATA_DIR", tmp_path)
+    monkeypatch.setattr("app.services.rag.DATA_DIR", tmp_path)
+    return tmp_path
 
 
-# ---------- LLM / HTTP mocks ----------
+@pytest.fixture
+def temp_manifest_path(manifest_dir) -> Path:
+    """Path the tests treat as "the manifest" — one per test, one engine-key.
+
+    Tests that only exercise utils / rag template methods use engine "test".
+    """
+    return manifest_dir / "ingested_test.json"
+
+
+# ---------- LLM / HTTP mocks (LangChain) ----------
 
 class _EchoLLM(Runnable):
     """Fake Runnable chat model: records invocations and returns a fixed AIMessage.
@@ -101,8 +114,8 @@ class _EchoLLM(Runnable):
 
 @pytest.fixture
 def echo_chat_openai(monkeypatch):
-    """Patch ChatOpenAI constructors used by the code. Returns a factory
-    that captures the last instance per module for assertions.
+    """Patch ChatOpenAI constructors used by the LangChain code path. Returns
+    a dict that captures the last instance per module for assertions.
     """
     created: dict[str, _EchoLLM] = {}
 
@@ -113,9 +126,9 @@ def echo_chat_openai(monkeypatch):
             return llm
         monkeypatch.setattr(f"{module_path}.ChatOpenAI", factory)
 
-    # utils.expand_queries: must return JSON with 2 queries (N_EXPANDED=2)
+    # langchain_rag.utils.expand_queries: must return JSON with 2 queries (N_EXPANDED=2)
     make_factory(
-        "app.services.utils",
+        "app.services.langchain_rag.utils",
         json.dumps({"queries": ["q-alt-1", "q-alt-2"]}),
     )
     # langchain_rag.service._generate: any text is fine
@@ -139,9 +152,62 @@ def echo_chat_openai(monkeypatch):
     clear_history()
 
 
+# ---------- LLM mocks (LlamaIndex) ----------
+
+class _EchoLIResponse:
+    """Shape returned by `LLM.chat`: has `.message.content`."""
+
+    def __init__(self, content: str):
+        from llama_index.core.base.llms.types import ChatMessage, MessageRole
+        self.message = ChatMessage(role=MessageRole.ASSISTANT, content=content)
+
+
+class _EchoLILLM:
+    """Fake LlamaIndex LLM: records `.chat` calls, returns a canned response."""
+
+    def __init__(self, content: str):
+        self._content = content
+        self.chat_calls: list[list[Any]] = []
+
+    def chat(self, messages, **kwargs):
+        self.chat_calls.append(list(messages))
+        return _EchoLIResponse(self._content)
+
+
+@pytest.fixture
+def echo_llamaindex_llm(monkeypatch):
+    """Patch `_get_llm()` in the LlamaIndex service module.
+
+    Also clears the ChatMemoryBuffer singleton so history doesn't leak
+    across tests, mirroring the LangChain fixture.
+    """
+    llm = _EchoLILLM("respuesta-eco-li")
+
+    from app.services.llamaindex_rag import db_comm as _db
+    _db._get_llm.cache_clear()
+    monkeypatch.setattr(
+        "app.services.llamaindex_rag.service._get_llm", lambda: llm
+    )
+    monkeypatch.setattr(
+        "app.services.llamaindex_rag.db_comm._get_llm", lambda: llm
+    )
+
+    from app.services.llamaindex_rag.memory import clear_history
+    clear_history()
+
+    yield llm
+
+    clear_history()
+    # No cache_clear on teardown: monkeypatch restores the original lru_cache
+    # function automatically, so an explicit cache_clear here would hit the
+    # (already-replaced) lambda and fail.
+
+
+# ---------- Reranker mock (shared by both engines) ----------
+
 @pytest.fixture
 def mock_reranker(monkeypatch):
-    """Patch httpx.post used by utils.rerank. Returns scores = 1/(i+1) keeping order."""
+    """Patch httpx.post used by utils.rerank_texts. Scores = 1/(i+1) keeping order."""
     calls: list[dict] = []
 
     class _Resp:
@@ -167,11 +233,11 @@ def mock_reranker(monkeypatch):
     return calls
 
 
-# ---------- PDF loader mock ----------
+# ---------- PDF loader mocks ----------
 
 @pytest.fixture
 def mock_pypdf_loader(monkeypatch):
-    """Patch PyPDFLoader so it returns canned pages indexed by filename."""
+    """Patch LangChain's PyPDFLoader so it returns canned pages indexed by filename."""
     pages_by_name: dict[str, list[Document]] = {}
 
     class _FakeLoader:
@@ -191,7 +257,44 @@ def mock_pypdf_loader(monkeypatch):
     return pages_by_name
 
 
-# ---------- Real ChromaDB test collection ----------
+@pytest.fixture
+def mock_li_pdf_reader(monkeypatch):
+    """Patch LlamaIndex's PDFReader so it returns canned pages indexed by filename.
+
+    Returns fresh Document instances on every call: the real `PDFReader` reads
+    from disk each time and the service mutates metadata in place, so reusing
+    the same objects would leak state across `_ingest` invocations.
+    """
+    from llama_index.core.schema import Document as LIDocument
+
+    pages_by_name: dict[str, list[LIDocument]] = {}
+
+    def _clone_docs(docs: list[LIDocument]) -> list[LIDocument]:
+        return [LIDocument(text=d.text, metadata=dict(d.metadata)) for d in docs]
+
+    class _FakeReader:
+        def load_data(self, file, extra_info=None, fs=None):
+            name = Path(file).name
+            if name in pages_by_name:
+                return _clone_docs(pages_by_name[name])
+            return [
+                LIDocument(
+                    text=f"page 0 of {name}",
+                    metadata={"page_label": "1", "file_name": name},
+                ),
+                LIDocument(
+                    text=f"page 1 of {name}",
+                    metadata={"page_label": "2", "file_name": name},
+                ),
+            ]
+
+    monkeypatch.setattr(
+        "app.services.llamaindex_rag.service.PDFReader", lambda: _FakeReader()
+    )
+    return pages_by_name
+
+
+# ---------- Real ChromaDB test collection (LangChain) ----------
 
 @pytest.fixture(scope="session")
 def chroma_client():
@@ -204,7 +307,6 @@ def test_collection_seeded(chroma_client):
 
     Destroyed at the end of the session so langchain_rag stays intact.
     """
-    # Clean any stale test collection from a previous run.
     try:
         chroma_client.delete_collection(TEST_COLLECTION_NAME)
     except Exception:
@@ -214,7 +316,6 @@ def test_collection_seeded(chroma_client):
         name=TEST_COLLECTION_NAME, metadata=COLLECTION_METADATA
     )
 
-    # Copy from the production collection if it exists.
     try:
         src = chroma_client.get_collection(COLLECTION_NAME)
         data = src.get(include=["documents", "metadatas", "embeddings"])
@@ -226,7 +327,6 @@ def test_collection_seeded(chroma_client):
                 embeddings=data["embeddings"],
             )
     except Exception:
-        # Source missing: leave the test collection empty.
         pass
 
     yield test_col
@@ -272,7 +372,6 @@ def empty_test_collection(chroma_client, test_collection_seeded):
     if all_ids:
         test_collection_seeded.delete(ids=all_ids)
     yield test_collection_seeded
-    # Re-seed from source.
     try:
         src = chroma_client.get_collection(COLLECTION_NAME)
         data = src.get(include=["documents", "metadatas", "embeddings"])
@@ -281,6 +380,102 @@ def empty_test_collection(chroma_client, test_collection_seeded):
             if current:
                 test_collection_seeded.delete(ids=current)
             test_collection_seeded.add(
+                ids=data["ids"],
+                documents=data["documents"],
+                metadatas=data["metadatas"],
+                embeddings=data["embeddings"],
+            )
+    except Exception:
+        pass
+
+
+# ---------- Real ChromaDB test collection (LlamaIndex) ----------
+
+@pytest.fixture(scope="session")
+def li_test_collection_seeded(chroma_client):
+    """Create llamaindex_rag_test as a copy of llamaindex_rag (session-scoped)."""
+    try:
+        chroma_client.delete_collection(LI_TEST_COLLECTION_NAME)
+    except Exception:
+        pass
+
+    test_col = chroma_client.create_collection(
+        name=LI_TEST_COLLECTION_NAME, metadata=COLLECTION_METADATA
+    )
+
+    try:
+        src = chroma_client.get_collection(LI_COLLECTION_NAME)
+        data = src.get(include=["documents", "metadatas", "embeddings"])
+        if data["ids"]:
+            test_col.add(
+                ids=data["ids"],
+                documents=data["documents"],
+                metadatas=data["metadatas"],
+                embeddings=data["embeddings"],
+            )
+    except Exception:
+        pass
+
+    yield test_col
+
+    try:
+        chroma_client.delete_collection(LI_TEST_COLLECTION_NAME)
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def patched_llamaindex_db(monkeypatch, chroma_client, li_test_collection_seeded):
+    """Redirect LlamaindexSrv to the llamaindex_rag_test collection.
+
+    We patch the native Chroma collection factory (`_get_chroma_collection`)
+    and rebuild the `ChromaVectorStore` / index singletons so the service
+    talks to the test collection instead of the production one.
+    """
+    from app.services.llamaindex_rag import db_comm as _db
+    from llama_index.vector_stores.chroma import ChromaVectorStore
+    from llama_index.core import StorageContext, VectorStoreIndex
+
+    test_collection = li_test_collection_seeded
+    test_vector_store = ChromaVectorStore(chroma_collection=test_collection)
+    test_storage = StorageContext.from_defaults(vector_store=test_vector_store)
+    test_index = VectorStoreIndex.from_vector_store(
+        vector_store=test_vector_store,
+        storage_context=test_storage,
+        embed_model=_db._get_embed_model(),
+    )
+
+    # Patch the service-side lookups so the whole flow uses the test objects.
+    monkeypatch.setattr(
+        "app.services.llamaindex_rag.service._get_chroma_collection",
+        lambda: test_collection,
+    )
+    monkeypatch.setattr(
+        "app.services.llamaindex_rag.service.get_index",
+        lambda: test_index,
+    )
+    monkeypatch.setattr(
+        "app.services.llamaindex_rag.service.get_collection_count",
+        lambda: test_collection.count(),
+    )
+    return test_collection
+
+
+@pytest.fixture
+def empty_li_test_collection(chroma_client, li_test_collection_seeded):
+    """llamaindex_rag_test emptied for ingest tests; re-seeded on teardown."""
+    all_ids = li_test_collection_seeded.get()["ids"]
+    if all_ids:
+        li_test_collection_seeded.delete(ids=all_ids)
+    yield li_test_collection_seeded
+    try:
+        src = chroma_client.get_collection(LI_COLLECTION_NAME)
+        data = src.get(include=["documents", "metadatas", "embeddings"])
+        if data["ids"]:
+            current = li_test_collection_seeded.get()["ids"]
+            if current:
+                li_test_collection_seeded.delete(ids=current)
+            li_test_collection_seeded.add(
                 ids=data["ids"],
                 documents=data["documents"],
                 metadatas=data["metadatas"],
