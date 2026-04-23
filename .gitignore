@@ -40,3 +40,6 @@ lerna-debug.log*
 # Local data / caches (runtime state, not source)
 chroma_data/
 reranker_cache/
+
+# Eval runs (HTML reports are generated artifacts)
+backend/evals/reports/

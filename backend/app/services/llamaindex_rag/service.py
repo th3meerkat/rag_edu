@@ -68,6 +68,16 @@ INGEST_BATCH_SIZE = 256
 logger = logging.getLogger(__name__)
 
 
+def _log_retrieved_nodes(hits: list[NodeWithScore]) -> None:
+    if not logger.isEnabledFor(logging.INFO):
+        return
+    for r, n in enumerate(hits, 1):
+        src = n.node.metadata.get("source", "?")
+        page = n.node.metadata.get("page", "?")
+        snippet = n.node.get_content()[:80].replace("\n", " ")
+        logger.info("    %d. source=%s page=%s | %s…", r, src, page, snippet)
+
+
 @lru_cache(maxsize=1)
 def _tokenizer_fn():
     """Tiktoken encoder aligned with the embedding model."""
@@ -177,11 +187,7 @@ class RagQueryEngine(CustomQueryEngine):
             )
             hits = retriever.retrieve(q)
             logger.info("  → %d hits", len(hits))
-            for r, n in enumerate(hits, 1):
-                src = n.node.metadata.get("source", "?")
-                page = n.node.metadata.get("page", "?")
-                snippet = n.node.get_content()[:80].replace("\n", " ")
-                logger.info("    %d. source=%s page=%s | %s…", r, src, page, snippet)
+            _log_retrieved_nodes(hits)
             ranked_lists.append(hits)
 
         # Step 3: RRF fuse. Single-query → no-op (would just reorder by its
@@ -299,11 +305,7 @@ class LlamaindexSrv(RagService[NodeWithScore]):
         hits = retriever.retrieve(query)
 
         logger.info("  → %d hits", len(hits))
-        for r, n in enumerate(hits, 1):
-            src = n.node.metadata.get("source", "?")
-            page = n.node.metadata.get("page", "?")
-            snippet = n.node.get_content()[:80].replace("\n", " ")
-            logger.info("    %d. source=%s page=%s | %s…", r, src, page, snippet)
+        _log_retrieved_nodes(hits)
         return hits
 
     # --- _generate ---

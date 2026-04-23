@@ -154,12 +154,17 @@ class LangchainSrv(RagService[Document]):
         docs = retriever.invoke(query)
 
         logger.info("  → %d hits", len(docs))
+        self._log_retrieved_docs(docs)
+        return docs
+
+    def _log_retrieved_docs(self, docs: list[Document]) -> None:
+        if not logger.isEnabledFor(logging.INFO):
+            return
         for r, d in enumerate(docs, 1):
             src = d.metadata.get("source", "?")
             page = d.metadata.get("page", "?")
             snippet = d.page_content[:80].replace("\n", " ")
             logger.info("    %d. source=%s page=%s | %s…", r, src, page, snippet)
-        return docs
 
     def _generate(self, question: str, docs: list[Document]) -> str:
         # Three layers of prompt-injection defense, no extra LLM:
@@ -266,12 +271,17 @@ class LangchainSrv(RagService[Document]):
 
     def _rerank_candidates(self, state: dict) -> list[Document]:
         reranked = rerank(state["msg"], state["candidates"], top_n=TOP_K_FINAL)
+        self._log_reranked(reranked)
+        return [doc for doc, _ in reranked]
+
+    def _log_reranked(self, reranked: list[tuple[Document, float]]) -> None:
+        if not logger.isEnabledFor(logging.INFO):
+            return
         logger.info("[rerank] top-%d:", TOP_K_FINAL)
         for r, (doc, score) in enumerate(reranked, 1):
             src = doc.metadata.get("source", "?")
             page = doc.metadata.get("page", "?")
             logger.info("  %d. rerank_score=%.4f source=%s page=%s", r, score, src, page)
-        return [doc for doc, _ in reranked]
 
     def _generate_answer(self, state: dict) -> str:
         answer = self._generate(state["msg"], state["docs"])
