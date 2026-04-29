@@ -49,7 +49,9 @@ from app.services.llamaindex_rag.prompts import build_prompt
 from app.services.llamaindex_rag.utils import (
     NONCE_BYTES,
     build_chunk_ids,
+    expand_queries,
     format_nodes,
+    rrf_fuse_nodes,
     sanitize_question,
 )
 from app.services.rag import RagService
@@ -168,8 +170,11 @@ class RagQueryEngine(CustomQueryEngine):
     engine_name: str = "llamaindex"
 
     def custom_query(self, query_str: str) -> str:
-        # Step 1: expand (disabled for now; see utils.expand_queries).
-        queries = [query_str]
+        # Step 1: expand. The original query stays at index 0 so it always
+        # weighs into the RRF fusion even if the paraphrases drift in topic.
+        expansions = expand_queries(query_str)
+        queries = [query_str, *expansions]
+        logger.info("[expand] %d expansions: %s", len(expansions), expansions)
 
         # Step 2: retrieve (one retrieval per expanded query).
         ranked_lists: list[list[NodeWithScore]] = []
@@ -180,10 +185,11 @@ class RagQueryEngine(CustomQueryEngine):
                 where_document=self.retriever_factory_where_document,
             )
             logger.info(
-                "[retrieve] cosine, top-%d (where=%s where_document=%s)",
+                "[retrieve] cosine, top-%d (where=%s where_document=%s) q=%r",
                 TOP_K_PER_QUERY,
                 self.retriever_factory_where,
                 self.retriever_factory_where_document,
+                q,
             )
             hits = retriever.retrieve(q)
             logger.info("  → %d hits", len(hits))
@@ -196,8 +202,8 @@ class RagQueryEngine(CustomQueryEngine):
         if len(ranked_lists) == 1:
             candidates = ranked_lists[0]
         else:
-            from app.services.llamaindex_rag.utils import rrf_fuse_nodes
             candidates = [node for _, node in rrf_fuse_nodes(ranked_lists)]
+            logger.info("[fuse] RRF over %d lists → %d candidates", len(ranked_lists), len(candidates))
 
         # Step 4: rerank via the native postprocessor.
         reranked = self.reranker.postprocess_nodes(

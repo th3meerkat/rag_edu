@@ -271,3 +271,129 @@ class TestMemory:
 
         second_call = echo_llamaindex_llm.chat_calls[1]
         assert len(second_call) == 3  # system + context + question
+
+
+# ---------- query expansion + RRF fusion ----------
+
+@pytest.fixture
+def query_pipeline_stubs(monkeypatch, mock_reranker, echo_llamaindex_llm):
+    """Wire stubs for `expand_queries`, `ChromaFilterRetriever`, the reranker
+    and the LLM so `srv.query(msg)` runs end-to-end without I/O.
+
+    Each test sets:
+      - `state["expansions"]` → what `expand_queries(msg)` returns
+      - `state["by_query"][q]` → what the (fake) retriever returns for query `q`
+
+    After `srv.query(msg)`, inspect:
+      - `state["expand_calls"]` → args `expand_queries` saw
+      - `state["queries_seen"]` → every query the retriever was asked for
+      - `mock_reranker[0]["json"]["documents"]` → texts that reached the reranker
+    """
+    state: dict = {
+        "expand_calls": [],
+        "queries_seen": [],
+        "by_query": {},
+        "expansions": ["paraphrase A", "paraphrase B"],
+    }
+
+    class _StubRetriever:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def retrieve(self, q):
+            state["queries_seen"].append(q)
+            return list(state["by_query"].get(q, []))
+
+    def fake_expand(msg):
+        state["expand_calls"].append(msg)
+        return list(state["expansions"])
+
+    monkeypatch.setattr(
+        "app.services.llamaindex_rag.service.ChromaFilterRetriever", _StubRetriever
+    )
+    monkeypatch.setattr(
+        "app.services.llamaindex_rag.service.expand_queries", fake_expand
+    )
+
+    # `RagQueryEngine.llm` is typed as `LLM` and pydantic enforces that even
+    # with `arbitrary_types_allowed=True`. The echo LLM in conftest is a plain
+    # class (it predates these tests and is shared with `_generate` tests that
+    # don't go through the engine), so we bypass validation here via
+    # `model_construct` — pydantic's documented escape hatch for trusted paths.
+    from app.config import TOP_K_FINAL
+    from app.services.llamaindex_rag.service import (
+        InfinityRerank,
+        LlamaindexSrv,
+        RagQueryEngine,
+        _get_llm,
+    )
+
+    def fake_build(self, where, where_document):
+        return RagQueryEngine.model_construct(
+            llm=_get_llm(),
+            reranker=InfinityRerank(top_n=TOP_K_FINAL),
+            retriever_factory_where=where,
+            retriever_factory_where_document=where_document,
+            engine_name=self.engine_name,
+            callback_manager=None,
+        )
+
+    monkeypatch.setattr(LlamaindexSrv, "_build_query_engine", fake_build)
+    return {"state": state, "rerank_calls": mock_reranker}
+
+
+class TestQueryExpansionAndFusion:
+    def test_query_calls_expand_queries_with_user_msg(self, query_pipeline_stubs):
+        s = query_pipeline_stubs["state"]
+        # At least one node so the reranker has something to send over the wire.
+        s["by_query"]["¿qué come el principito?"] = [_node("hit-orig")]
+        srv = LlamaindexSrv()
+        srv.query("¿qué come el principito?")
+        assert s["expand_calls"] == ["¿qué come el principito?"]
+
+    def test_query_runs_one_retrieval_per_query(self, query_pipeline_stubs):
+        s = query_pipeline_stubs["state"]
+        s["expansions"] = ["alt-1", "alt-2"]
+        s["by_query"]["orig"] = [_node("a")]
+        s["by_query"]["alt-1"] = [_node("b")]
+        s["by_query"]["alt-2"] = [_node("c")]
+        srv = LlamaindexSrv()
+        srv.query("orig")
+        # Original query first, then the two paraphrases — the order matters
+        # because the original is what the user actually asked.
+        assert s["queries_seen"] == ["orig", "alt-1", "alt-2"]
+
+    def test_rrf_dedupes_duplicates_across_lists(self, query_pipeline_stubs):
+        s = query_pipeline_stubs["state"]
+        s["expansions"] = ["alt-1", "alt-2"]
+        # `shared` appears in two of the three lists. RRF keys by node text,
+        # so the duplicate must collapse to a single candidate.
+        s["by_query"]["orig"] = [_node("shared"), _node("only-orig")]
+        s["by_query"]["alt-1"] = [_node("shared"), _node("only-alt1")]
+        s["by_query"]["alt-2"] = [_node("only-alt2")]
+        srv = LlamaindexSrv()
+        srv.query("orig")
+
+        rerank_calls = query_pipeline_stubs["rerank_calls"]
+        assert len(rerank_calls) == 1
+        sent = rerank_calls[0]["json"]["documents"]
+        assert sorted(sent) == sorted(
+            ["shared", "only-orig", "only-alt1", "only-alt2"]
+        )
+
+    def test_reranker_receives_fused_candidates_not_raw_concatenation(
+        self, query_pipeline_stubs
+    ):
+        s = query_pipeline_stubs["state"]
+        s["expansions"] = ["alt-1", "alt-2"]
+        # Same two nodes returned by all three retrievals. Without fusion the
+        # reranker would receive 6 items; with RRF it gets 2.
+        s["by_query"]["orig"] = [_node("x"), _node("y")]
+        s["by_query"]["alt-1"] = [_node("x"), _node("y")]
+        s["by_query"]["alt-2"] = [_node("x"), _node("y")]
+        srv = LlamaindexSrv()
+        srv.query("orig")
+
+        sent = query_pipeline_stubs["rerank_calls"][0]["json"]["documents"]
+        assert len(sent) == 2
+        assert set(sent) == {"x", "y"}
