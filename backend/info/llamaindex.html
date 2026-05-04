@@ -402,6 +402,11 @@
 <header class="hero">
   <div class="eyebrow">Tutorial · Python · LlamaIndex</div>
   <h1><span class="lang-es">Aprender LlamaIndex leyendo un RAG real</span><span class="lang-en">Learn LlamaIndex by reading a real RAG</span></h1>
+  <figure class="illustration">
+    <img src="imgs/llama_intro.png" alt="A friendly cartoon llama welcoming the reader to the tutorial">
+    <figcaption class="lang-es">Bienvenido. Vamos a leer un RAG juntos.</figcaption>
+    <figcaption class="lang-en">Welcome. Let's read a RAG together.</figcaption>
+  </figure>
   <p class="subtitle"><span class="lang-es">Un recorrido guiado por <code>llamaindex_rag/service.py</code>, pensado para entender el framework a partir de un sistema productivo (no de un quickstart).</span><span class="lang-en">A guided walk through <code>llamaindex_rag/service.py</code>, designed to teach the framework from a production-grade system rather than a quickstart.</span></p>
   <div class="meta lang-es">
     <span>Nivel: intermedio</span>
@@ -468,11 +473,12 @@
 <p class="lang-en">The canonical "journey" the framework models is always the same:</p>
 
 <figure class="illustration">
-  <img src="imgs/llama_cadena_conceptual.png" alt="Diagram of the LlamaIndex conceptual chain: Loader, Document, Node Parser, Node, Embedding + Vector Store, Index, Retriever, Postprocessors, Response Synthesizer, Query Engine">
+  <img class="lang-es" src="imgs/llama_cadena_conceptual.png" alt="Diagram of the LlamaIndex conceptual chain: Loader, Document, Node Parser, Node, Embedding + Vector Store, Index, Retriever, Postprocessors, Response Synthesizer, Query Engine">
+  <img class="lang-en" src="imgs/llama_cadena_conceptual_eng.png" alt="Diagram of the LlamaIndex conceptual chain: Loader, Document, Node Parser, Node, Embedding + Vector Store, Index, Retriever, Postprocessors, Response Synthesizer, Query Engine">
   <figcaption class="lang-es">La cadena conceptual completa de LlamaIndex.</figcaption>
   <figcaption class="lang-en">The full LlamaIndex conceptual chain.</figcaption>
   <button type="button" class="zoom-btn lang-es" data-zoom-src="imgs/llama_cadena_conceptual.png" data-zoom-alt="Cadena conceptual de LlamaIndex (vista ampliada)">Ampliar imagen</button>
-  <button type="button" class="zoom-btn lang-en" data-zoom-src="imgs/llama_cadena_conceptual.png" data-zoom-alt="LlamaIndex conceptual chain (zoomed in)">Zoom in</button>
+  <button type="button" class="zoom-btn lang-en" data-zoom-src="imgs/llama_cadena_conceptual_eng.png" data-zoom-alt="LlamaIndex conceptual chain (zoomed in)">Zoom in</button>
 </figure>
 
 <p class="lang-es">Cada pieza es una abstracción con una interfaz base que podés extender. Esto es importante: <strong>todo en LlamaIndex es reemplazable mientras respetes el contrato</strong>. Vas a ver eso aplicado más adelante con el retriever custom.</p>
@@ -1096,11 +1102,12 @@ response = self.llm.<span class="tok-f">chat</span>(messages=messages)
 <p class="lang-en">The RAG pipeline that <code>RagQueryEngine.custom_query</code> assembles is the canonical five-step shape:</p>
 
 <figure class="illustration">
-  <img src="imgs/rag_query_engine_canonical.png" alt="Canonical RagQueryEngine pipeline: expand, retrieve, fuse (RRF), rerank, generate">
+  <img class="lang-es" src="imgs/llama_rag_query_engine_canonical.png" alt="Canonical RagQueryEngine pipeline: expand, retrieve, fuse (RRF), rerank, generate">
+  <img class="lang-en" src="imgs/llama_rag_query_engine_canonical_eng.png" alt="Canonical RagQueryEngine pipeline: expand, retrieve, fuse (RRF), rerank, generate">
   <figcaption class="lang-es">El pipeline canónico de 5 pasos que implementa <code>RagQueryEngine.custom_query</code>.</figcaption>
   <figcaption class="lang-en">The canonical 5-step pipeline implemented by <code>RagQueryEngine.custom_query</code>.</figcaption>
-  <button type="button" class="zoom-btn lang-es" data-zoom-src="imgs/rag_query_engine_canonical.png" data-zoom-alt="Pipeline canónico del RagQueryEngine (vista ampliada)">Ampliar imagen</button>
-  <button type="button" class="zoom-btn lang-en" data-zoom-src="imgs/rag_query_engine_canonical.png" data-zoom-alt="Canonical RagQueryEngine pipeline (zoomed in)">Zoom in</button>
+  <button type="button" class="zoom-btn lang-es" data-zoom-src="imgs/llama_rag_query_engine_canonical.png" data-zoom-alt="Pipeline canónico del RagQueryEngine (vista ampliada)">Ampliar imagen</button>
+  <button type="button" class="zoom-btn lang-en" data-zoom-src="imgs/llama_rag_query_engine_canonical_eng.png" data-zoom-alt="Canonical RagQueryEngine pipeline (zoomed in)">Zoom in</button>
 </figure>
 
 <h2 id="wiring"><span class="lang-es">3. La capa de <em>wiring</em> (<code>db_comm.py</code>) — el preámbulo</span><span class="lang-en">3. The <em>wiring</em> layer (<code>db_comm.py</code>) — the preamble</span></h2>
