@@ -28,8 +28,10 @@ from app.services.langchain_rag.prompts import build_prompt
 from app.services.langchain_rag.utils import (
     NONCE_BYTES,
     build_chunk_ids,
+    expand_queries,
     format_docs,
     rerank,
+    rrf_fuse_docs,
     sanitize_question,
 )
 from app.services.rag import RagService
@@ -248,11 +250,16 @@ class LangchainSrv(RagService[Document]):
     def _retrieve_and_fuse(self, state: dict) -> list[Document]:
         """Expand the query, fan out retrieval via `.batch()`, then RRF-fuse.
 
-        `.batch()` is LCEL's native parallel dispatch — once query expansion
-        is re-enabled, the N retrievals run concurrently (threadpool for sync
-        / asyncio for async) without us writing a single await or future.
+        `.batch()` is LCEL's native parallel dispatch: the N retrievals run
+        concurrently (threadpool for sync / asyncio for async) without us
+        writing a single await or future.
         """
-        queries = [state["msg"]]  # expansion disabled; see utils.expand_queries.
+        # Original query stays at index 0 so it always weighs into the RRF
+        # fusion even if the paraphrases drift in topic.
+        expansions = expand_queries(state["msg"])
+        queries = [state["msg"], *expansions]
+        logger.info("[expand] %d expansions: %s", len(expansions), expansions)
+
         where, where_doc = state["where"], state["where_document"]
 
         def retrieve_one(q: str) -> list[Document]:
@@ -265,8 +272,8 @@ class LangchainSrv(RagService[Document]):
         if len(ranked_lists) == 1:
             return ranked_lists[0]
 
-        from app.services.langchain_rag.utils import rrf_fuse_docs
         fused = rrf_fuse_docs(ranked_lists)
+        logger.info("[fuse] RRF over %d lists → %d candidates", len(ranked_lists), len(fused))
         return [doc for _, doc in fused]
 
     def _rerank_candidates(self, state: dict) -> list[Document]:
