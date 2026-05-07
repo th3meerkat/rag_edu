@@ -1,0 +1,50 @@
+name: Deploy tutorials to GitHub Pages
+
+# Publishes tutorials/ as a static site at https://<owner>.github.io/<repo>/.
+# The site contents (HTMLs + i18n JSON + imgs/) live under tutorials/ in the
+# repo and are copied verbatim — there's no Jekyll build, no static-site
+# generator. The .nojekyll touch keeps GitHub Pages from preprocessing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tutorials/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage site
+        run: |
+          mkdir _site
+          cp -R tutorials/. _site/
+          touch _site/.nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        name: Deploy
+        uses: actions/deploy-pages@v4

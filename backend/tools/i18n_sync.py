@@ -8,9 +8,9 @@ external JSON. Embedding the JSON inline removes the fetch entirely while
 keeping the external file as the editable source of truth.
 
 Workflow:
-    1. Edit  backend/info/i18n/<name>.json   (single source of truth).
-    2. Run   `uv run python -m tools.i18n_sync info/<name>.html`
-       (or a glob: pass multiple paths).
+    1. Edit  tutorials/i18n/<name>.json   (single source of truth).
+    2. Run   `uv run python -m tools.i18n_sync ../tutorials/<name>.html`
+       (from backend/, or pass multiple paths).
     3. Open the HTML directly with no server.
 
 The script is idempotent: it replaces an existing inline block if found,

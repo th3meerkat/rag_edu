@@ -1,0 +1,58 @@
+{
+  "hero.eyebrow": {
+    "es": "Tutoriales · GenAI · Production-grade",
+    "en": "Tutorials · GenAI · Production-grade"
+  },
+  "hero.title": {
+    "es": "RAG Lab",
+    "en": "RAG Lab"
+  },
+  "hero.subtitle": {
+    "es": "Cuatro tutoriales que enseñan RAG leyendo el código real de un sistema en producción — no quickstarts. Conceptos framework-agnostic, dos engines (LangChain y LlamaIndex), y un catálogo de troubleshooting para cuando algo no anda.",
+    "en": "Four tutorials that teach RAG by reading the real code of a production system — not quickstarts. Framework-agnostic concepts, two engines (LangChain and LlamaIndex), and a troubleshooting catalog for when something breaks."
+  },
+  "pitch.p1": {
+    "es": "<strong>El ángulo:</strong> la mayoría de los tutoriales de RAG te muestran <code>VectorStoreIndex.from_documents(...)</code> en cinco líneas. Quedan lindos, pero no te preparan para las decisiones que aparecen cuando armás un RAG real — filtros que el framework no expone, pipelines con varios pasos, separación entre ingest y retrieve, testabilidad, evaluación.",
+    "en": "<strong>The angle:</strong> most RAG tutorials show you <code>VectorStoreIndex.from_documents(...)</code> in five lines. They look clean, but they don't prepare you for the decisions you face when building a real RAG — filters the framework doesn't expose, multi-step pipelines, ingest/retrieve separation, testability, evaluation."
+  },
+  "pitch.p2": {
+    "es": "<strong>El método:</strong> leemos un servicio RAG ya construido y, paso a paso, vemos qué pieza usa, por qué, y dónde decidió salirse de la ruta directa. Bilingüe (EN / ES), pensado como referencia mientras construís el tuyo.",
+    "en": "<strong>The method:</strong> we read a RAG service that's already built and, step by step, examine which piece it uses, why, and where it deliberately leaves the beaten path. Bilingual (EN / ES), meant as a reference while you build your own."
+  },
+  "cards.heading": {
+    "es": "Los cuatro tutoriales",
+    "en": "The four tutorials"
+  },
+  "cards.rag.eyebrow":  {"es": "Concept hub",     "en": "Concept hub"},
+  "cards.rag.title":    {"es": "Cómo funciona un RAG por dentro",       "en": "How a RAG actually works"},
+  "cards.rag.desc":     {"es": "El pipeline canónico de 5 pasos, chunking, embeddings, retrieval, reranking, generación, memoria, evaluación. Framework-agnostic. Empezá acá.", "en": "The canonical 5-step pipeline, chunking, embeddings, retrieval, reranking, generation, memory, evaluation. Framework-agnostic. Start here."},
+  "cards.rag.cta":      {"es": "Leer el hub conceptual", "en": "Read the concept hub"},
+
+  "cards.langchain.eyebrow": {"es": "Implementación", "en": "Implementation"},
+  "cards.langchain.title":   {"es": "Aprender LangChain leyendo un RAG real", "en": "Learn LangChain by reading a real RAG"},
+  "cards.langchain.desc":    {"es": "LCEL, Runnable, RunnableWithMessageHistory, memoria, prompt-injection, decisiones grises. Recorrido por <code>langchain_rag/service.py</code>.", "en": "LCEL, Runnable, RunnableWithMessageHistory, memory, prompt injection, gray-area decisions. A walk through <code>langchain_rag/service.py</code>."},
+  "cards.langchain.cta":     {"es": "Ver el engine LangChain", "en": "See the LangChain engine"},
+
+  "cards.llamaindex.eyebrow": {"es": "Implementación", "en": "Implementation"},
+  "cards.llamaindex.title":   {"es": "Aprender LlamaIndex leyendo un RAG real", "en": "Learn LlamaIndex by reading a real RAG"},
+  "cards.llamaindex.desc":    {"es": "VectorStoreIndex, CustomQueryEngine, retriever custom, BaseNodePostprocessor, decisiones grises. Recorrido por <code>llamaindex_rag/service.py</code>.", "en": "VectorStoreIndex, CustomQueryEngine, custom retriever, BaseNodePostprocessor, gray decisions. A walk through <code>llamaindex_rag/service.py</code>."},
+  "cards.llamaindex.cta":     {"es": "Ver el engine LlamaIndex", "en": "See the LlamaIndex engine"},
+
+  "cards.rag_faq.eyebrow": {"es": "Operación", "en": "Operations"},
+  "cards.rag_faq.title":   {"es": "Troubleshooting y FAQ", "en": "Troubleshooting & FAQ"},
+  "cards.rag_faq.desc":    {"es": "Pitfalls clásicos, FAQ, mapa de síntomas → causas posibles, y un triage retrieval/generation/orchestration. Para cuando un RAG en producción se porta raro.", "en": "Classic pitfalls, FAQ, a symptom→likely-cause map, and a retrieval/generation/orchestration triage. For when a production RAG starts behaving oddly."},
+  "cards.rag_faq.cta":     {"es": "Abrir el catálogo", "en": "Open the catalog"},
+
+  "footer.body": {
+    "es": "Tutoriales abiertos, opinionados, y bilingües.",
+    "en": "Open, opinionated, bilingual tutorials."
+  },
+  "footer.author": {
+    "es": "Por Diego · publicado el 2026-05-07",
+    "en": "By Diego · published 2026-05-07"
+  },
+  "footer.versions": {
+    "es": "Versiones probadas: LangChain 0.3.x · LlamaIndex 0.12.x · Python 3.13",
+    "en": "Tested versions: LangChain 0.3.x · LlamaIndex 0.12.x · Python 3.13"
+  }
+}

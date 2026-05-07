@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract bilingual `.lang-es`/`.lang-en` content from a tutorial HTML into a
 JSON i18n file, and rewrite the HTML to use `data-i18n` / `data-i18n-attr-*`
-references read by `backend/info/i18n.js`.
+references read by `tutorials/i18n.js`.
 
 Patterns handled:
 
@@ -42,8 +42,8 @@ Side effects on the HTML, beyond the bilingual replacements:
 Usage:
     uv run python -m tools.i18n_extract <html_path>
 
-The script writes the JSON next to `info/i18n/<basename>.json` and rewrites
-the HTML in place.
+The script writes the JSON next to `<html_dir>/i18n/<basename>.json` and
+rewrites the HTML in place.
 """
 from __future__ import annotations
 

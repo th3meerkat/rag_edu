@@ -850,5 +850,29 @@
   "breadcrumb.current": {
     "es": "Conceptos de RAG",
     "en": "RAG concepts"
+  },
+  "siblings.rag": {
+    "es": "Conceptos",
+    "en": "Concepts"
+  },
+  "siblings.langchain": {
+    "es": "LangChain",
+    "en": "LangChain"
+  },
+  "siblings.llamaindex": {
+    "es": "LlamaIndex",
+    "en": "LlamaIndex"
+  },
+  "siblings.rag_faq": {
+    "es": "Troubleshooting",
+    "en": "Troubleshooting"
+  },
+  "footer.author": {
+    "es": "Por Diego · publicado el 2026-05-07",
+    "en": "By Diego · published 2026-05-07"
+  },
+  "footer.versions": {
+    "es": "Versiones probadas: LangChain 0.3.x · LlamaIndex 0.12.x · Python 3.13",
+    "en": "Tested versions: LangChain 0.3.x · LlamaIndex 0.12.x · Python 3.13"
   }
 }
