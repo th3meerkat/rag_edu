@@ -28,8 +28,8 @@ INFO_DIR = REPO_ROOT / "tutorials"
 I18N_DIR = INFO_DIR / "i18n"
 
 SITE = {
-    "base_url": "https://elmago.github.io/rag_lab",
-    "github_url": "https://github.com/elmago/rag_lab",
+    "base_url": "https://elmago.github.io/rag_edu",
+    "github_url": "https://github.com/elmago/rag_edu",
     "author": "Diego",
     "published": "2026-05-07",
     "versions": "LangChain 0.3.x · LlamaIndex 0.12.x · Python 3.13",
@@ -177,7 +177,7 @@ def build_meta_block(t: dict, base_url: str) -> str:
     page_url = f"{base_url}/{[k for k, v in TUTORIALS.items() if v['slug'] == t['slug']][0]}"
     return f"""<!-- Open Graph / Twitter Cards (auto-managed by tools/i18n_publish.py) -->
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="rag_lab">
+<meta property="og:site_name" content="rag_edu">
 <meta property="og:url" content="{page_url}">
 <meta property="og:title" content="{t['og_title_en']}">
 <meta property="og:description" content="{t['og_desc_en']}">
