@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RAG troubleshooting &amp; FAQ · Tutorial</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --bg-card: #ffffff;
+    --text: #1d1d1f;
+    --text-muted: #57606a;
+    --accent: #2b5e3a;
+    --accent-soft: #e8f0ea;
+    --border: #e6e6df;
+    --code-bg: #f6f8fa;
+    --code-text: #24292f;
+    --keyword: #cf222e;
+    --string: #0a3069;
+    --comment: #6e7781;
+    --func: #8250df;
+    --table-head: #f1f2ed;
+    --shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+  }
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 56px 28px 96px;
+  }
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 28px;
+    margin-bottom: 40px;
+  }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 38px;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .subtitle {
+    font-size: 19px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .meta {
+    margin-top: 20px;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .meta span + span::before {
+    content: " · ";
+    margin: 0 6px;
+  }
+  nav.toc {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 48px;
+    box-shadow: var(--shadow);
+  }
+  nav.toc h2 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 600;
+    border: none;
+    padding: 0;
+  }
+  nav.toc ol {
+    margin: 0;
+    padding-left: 22px;
+    columns: 2;
+    column-gap: 30px;
+  }
+  nav.toc li {
+    margin: 4px 0;
+    break-inside: avoid;
+  }
+  nav.toc a {
+    color: var(--text);
+    text-decoration: none;
+  }
+  nav.toc a:hover { color: var(--accent); text-decoration: underline; }
+
+  h2 {
+    font-size: 28px;
+    margin: 56px 0 16px;
+    letter-spacing: -0.01em;
+    border-bottom: 2px solid var(--accent-soft);
+    padding-bottom: 8px;
+  }
+  h3 {
+    font-size: 21px;
+    margin: 36px 0 12px;
+    color: var(--accent);
+  }
+  h4 {
+    font-size: 17px;
+    margin: 24px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  p { margin: 0 0 16px; }
+  ul, ol { margin: 0 0 16px; padding-left: 24px; }
+  li { margin: 6px 0; }
+  strong { font-weight: 600; }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--code-text);
+  }
+
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0;
+  }
+  .callout strong { color: var(--accent); }
+  .callout-warn {
+    border-left-color: #b08800;
+    background: #fff8dc;
+  }
+  .callout-warn strong { color: #8a6d00; }
+  .callout-cross {
+    border-left-color: var(--func);
+    background: #f5efff;
+  }
+  .callout-cross strong { color: var(--func); }
+  .callout-cross a { color: var(--func); font-weight: 600; }
+
+  /* FAQ items: a clean Q/A layout. */
+  .faq-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 14px 0;
+    background: var(--bg-card);
+  }
+  .faq-item h3 {
+    margin: 0 0 8px;
+    font-size: 17px;
+    color: var(--text);
+  }
+  .faq-item h3::before {
+    content: "Q. ";
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .faq-item p { margin: 0; color: var(--text-muted); }
+
+  /* Symptom -> causes blocks. */
+  .symptom {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+    background: var(--bg-card);
+  }
+  .symptom > h3 {
+    margin: 0 0 4px;
+    font-size: 19px;
+    color: var(--text);
+  }
+  .symptom > h3::before {
+    content: "▶ ";
+    color: var(--accent);
+  }
+  .symptom > .lede { margin: 0 0 12px; color: var(--text-muted); font-style: italic; font-size: 14.5px; }
+  .symptom h4 {
+    margin: 14px 0 4px;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+  .symptom ul { margin: 0; padding-left: 22px; font-size: 15px; }
+  .symptom li code { font-size: 13.5px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 15px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th, td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: var(--table-head);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  tr:last-child td { border-bottom: none; }
+
+  .cross-cta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin: 28px 0 8px;
+  }
+  .cross-cta a {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 18px;
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    text-decoration: none;
+    background: var(--bg-card);
+    color: var(--text);
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .cross-cta a:hover {
+    background: var(--accent-soft);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(43, 94, 58, 0.12);
+  }
+  .cross-cta a .cta-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .cross-cta a .cta-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .cross-cta a .cta-title::after {
+    content: " →";
+    color: var(--accent);
+  }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  /* ======= Language toggle ============================================ */
+  .lang-toggle {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 1200;
+    display: inline-flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    user-select: none;
+  }
+  .lang-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 0;
+    filter: grayscale(0.7);
+    opacity: 0.55;
+    transition: background 0.15s ease, filter 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+  }
+  .lang-toggle button:hover {
+    filter: grayscale(0.2);
+    opacity: 0.85;
+  }
+  body.lang-en .lang-toggle button[data-lang="en"],
+  body.lang-es .lang-toggle button[data-lang="es"] {
+    background: var(--accent-soft);
+    filter: grayscale(0);
+    opacity: 1;
+    transform: scale(1.05);
+  }
+
+  .breadcrumb {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: -8px 0 24px;
+    letter-spacing: 0.02em;
+  }
+  .breadcrumb a {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .breadcrumb a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .breadcrumb .sep {
+    margin: 0 6px;
+    opacity: 0.5;
+  }
+  .breadcrumb .current {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+
+
+
+
+  /* ======= Sibling-tutorials extras :: managed by i18n_publish ======= */
+  /* ======= Sibling-tutorials nav ====================================== */
+  .siblings {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 1200;
+    display: inline-flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    font-size: 12px;
+    font-weight: 600;
+    user-select: none;
+  }
+  .siblings a {
+    padding: 5px 12px;
+    border-radius: 999px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease;
+    letter-spacing: 0.04em;
+  }
+  .siblings a:hover { color: var(--text); background: var(--accent-soft); }
+  .siblings a[data-slug="rag_faq"] {
+    background: var(--accent);
+    color: #fff;
+  }
+  @media (max-width: 720px) {
+    .siblings {
+      top: 64px;          /* below the toggle pill */
+      left: 8px;
+      right: 8px;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+    .siblings a { padding: 4px 8px; }
+  }
+
+  /* ======= Mobile touch target for toggle pill ======================== */
+  @media (max-width: 720px) {
+    .lang-toggle button {
+      padding: 8px 14px;
+      min-height: 36px;
+    }
+  }
+
+  /* ======= Print stylesheet =========================================== */
+  @media print {
+    .lang-toggle, .siblings, .lang-toggle-mobile,
+    .breadcrumb, .back-link, .zoom-btn, .modal-overlay,
+    .cross-cta { display: none !important; }
+    body { font-size: 12pt; line-height: 1.5; }
+    .container { max-width: none; padding: 0; }
+    a { color: inherit; text-decoration: underline; }
+    figure, table, pre { page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
+  }
+  /* ======= /Sibling-tutorials extras ================================== */footer .footer-meta {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    opacity: 0.85;
+  }
+  footer .footer-meta a {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-muted);
+  }
+  footer .footer-meta a:hover { color: var(--accent); border-bottom-color: var(--accent); }footer .footer-meta a {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-muted);
+  }
+  footer .footer-meta a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+
+
+
+
+  footer .footer-meta {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    opacity: 0.85;
+  }
+  footer .footer-meta a {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-muted);
+  }
+  footer .footer-meta a:hover { color: var(--accent); border-bottom-color: var(--accent); }footer .footer-meta a {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-muted);
+  }
+  footer .footer-meta a:hover { color: var(--accent); border-bottom-color: var(--accent); }footer .footer-meta a {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-muted);
+  }
+  footer .footer-meta a:hover { color: var(--accent); border-bottom-color: var(--accent); }footer .footer-meta a {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-muted);
+  }
+  footer .footer-meta a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+</style>
+<!-- Open Graph / Twitter Cards (auto-managed by tools/i18n_publish.py) -->
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="rag_lab">
+<meta property="og:url" content="https://elmago.github.io/rag_lab/rag_faq.html">
+<meta property="og:title" content="RAG troubleshooting & FAQ">
+<meta property="og:description" content="Classic pitfalls, FAQ, and a symptom-to-likely-cause map for when a production RAG starts behaving oddly.">
+<meta property="og:image" content="https://elmago.github.io/rag_lab/imgs/og_rag_faq.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RAG troubleshooting & FAQ">
+<meta name="twitter:description" content="Classic pitfalls, FAQ, and a symptom-to-likely-cause map for when a production RAG starts behaving oddly.">
+<meta name="twitter:image" content="https://elmago.github.io/rag_lab/imgs/og_rag_faq.png">
+<link rel="canonical" href="https://elmago.github.io/rag_lab/rag_faq.html">
+<!-- /Open Graph -->
+<!-- Favicons (auto-managed) -->
+<link rel="icon" type="image/png" sizes="16x16" href="imgs/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="imgs/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="imgs/apple-touch-icon.png">
+<!-- /Favicons -->
+</head>
+<body class="lang-en">
+<nav class="siblings" aria-label="Tutorial siblings">
+  <a href="rag.html"        data-slug="rag"        ><span data-i18n="siblings.rag"></span></a>
+  <a href="langchain.html"  data-slug="langchain"  ><span data-i18n="siblings.langchain"></span></a>
+  <a href="llamaindex.html" data-slug="llamaindex" ><span data-i18n="siblings.llamaindex"></span></a>
+  <a href="rag_faq.html"    data-slug="rag_faq"    ><span data-i18n="siblings.rag_faq"></span></a>
+</nav>
+<div aria-label="Language" class="lang-toggle" role="group">
+<button aria-label="Switch to English" data-lang="en" type="button"><svg viewBox="0 0 30 20" width="22" height="14" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="30" height="20" fill="#b22234"/><rect y="2" width="30" height="1.5" fill="#fff"/><rect y="5" width="30" height="1.5" fill="#fff"/><rect y="8" width="30" height="1.5" fill="#fff"/><rect y="11" width="30" height="1.5" fill="#fff"/><rect y="14" width="30" height="1.5" fill="#fff"/><rect y="17" width="30" height="1.5" fill="#fff"/><rect width="12" height="10" fill="#3c3b6e"/></svg></button>
+<button aria-label="Cambiar a español" data-lang="es" type="button"><svg viewBox="0 0 30 20" width="22" height="14" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="30" height="20" fill="#aa151b"/><rect y="5" width="30" height="10" fill="#f1bf00"/></svg></button>
+</div>
+<div class="container">
+<nav class="breadcrumb" aria-label="Breadcrumb">
+<a data-i18n="breadcrumb.parent" href="rag.html"></a>
+<span class="sep">›</span>
+<span class="current" data-i18n="breadcrumb.current"></span>
+</nav>
+<header class="hero">
+
+<div class="eyebrow" data-i18n="hero.div.1"></div>
+<h1>
+
+<span data-i18n="hero.span.1"></span>
+</h1>
+
+<p class="subtitle" data-i18n="hero.body.p.1"></p>
+
+<div class="meta" data-i18n="hero.meta.1"></div>
+</header>
+
+<nav class="toc" data-i18n="toc.nav.1"></nav>
+
+<p data-i18n="intro.body.p.1"></p>
+<h2 id="pitfalls">
+
+<span data-i18n="section.pitfalls.span.1"></span>
+</h2>
+
+<p data-i18n="section.pitfalls.body.p.1"></p>
+
+<div class="callout callout-warn" data-i18n="section.pitfalls.callout.1"></div>
+
+<div class="callout callout-warn" data-i18n="section.pitfalls.callout.2"></div>
+
+<div class="callout callout-warn" data-i18n="section.pitfalls.callout.3"></div>
+
+<div class="callout callout-warn" data-i18n="section.pitfalls.callout.4"></div>
+
+<div class="callout callout-warn" data-i18n="section.pitfalls.callout.5"></div>
+
+<div class="callout callout-warn" data-i18n="section.pitfalls.callout.6"></div>
+<h2 id="faq">
+
+<span data-i18n="section.faq.span.1"></span>
+</h2>
+
+<p data-i18n="section.faq.body.p.1"></p>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.1"></h3>
+
+<p data-i18n="section.faq.body.p.2"></p>
+</div>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.2"></h3>
+
+<p data-i18n="section.faq.body.p.3"></p>
+</div>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.3"></h3>
+
+<p data-i18n="section.faq.body.p.4"></p>
+</div>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.4"></h3>
+
+<p data-i18n="section.faq.body.p.5"></p>
+</div>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.5"></h3>
+
+<p data-i18n="section.faq.body.p.6"></p>
+</div>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.6"></h3>
+
+<p data-i18n="section.faq.body.p.7"></p>
+</div>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.7"></h3>
+
+<p data-i18n="section.faq.body.p.8"></p>
+</div>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.8"></h3>
+
+<p data-i18n="section.faq.body.p.9"></p>
+</div>
+<div class="faq-item">
+
+<h3 data-i18n="section.faq.subheading.9"></h3>
+
+<p data-i18n="section.faq.body.p.10"></p>
+</div>
+<h2 id="symptoms">
+
+<span data-i18n="section.symptoms.span.1"></span>
+</h2>
+
+<p data-i18n="section.symptoms.body.p.1"></p>
+<div class="symptom">
+
+<h3 data-i18n="section.symptoms.subheading.1"></h3>
+
+<p class="lede" data-i18n="section.symptoms.body.p.2"></p>
+
+<h4 data-i18n="section.symptoms.subsubheading.1"></h4>
+
+<ul data-i18n="section.symptoms.list.1"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.2"></h4>
+
+<ul data-i18n="section.symptoms.list.2"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.3"></h4>
+
+<ul data-i18n="section.symptoms.list.3"></ul>
+</div>
+<div class="symptom">
+
+<h3 data-i18n="section.symptoms.subheading.2"></h3>
+
+<p class="lede" data-i18n="section.symptoms.body.p.3"></p>
+
+<h4 data-i18n="section.symptoms.subsubheading.4"></h4>
+
+<ul data-i18n="section.symptoms.list.4"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.5"></h4>
+
+<ul data-i18n="section.symptoms.list.5"></ul>
+</div>
+<div class="symptom">
+
+<h3 data-i18n="section.symptoms.subheading.3"></h3>
+
+<p class="lede" data-i18n="section.symptoms.body.p.4"></p>
+
+<h4 data-i18n="section.symptoms.subsubheading.6"></h4>
+
+<ul data-i18n="section.symptoms.list.6"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.7"></h4>
+
+<ul data-i18n="section.symptoms.list.7"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.8"></h4>
+
+<ul data-i18n="section.symptoms.list.8"></ul>
+</div>
+<div class="symptom">
+
+<h3 data-i18n="section.symptoms.subheading.4"></h3>
+
+<p class="lede" data-i18n="section.symptoms.body.p.5"></p>
+
+<h4 data-i18n="section.symptoms.subsubheading.9"></h4>
+
+<ul data-i18n="section.symptoms.list.9"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.10"></h4>
+
+<ul data-i18n="section.symptoms.list.10"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.11"></h4>
+
+<ul data-i18n="section.symptoms.list.11"></ul>
+</div>
+<div class="symptom">
+
+<h3 data-i18n="section.symptoms.subheading.5"></h3>
+
+<p class="lede" data-i18n="section.symptoms.body.p.6"></p>
+
+<h4 data-i18n="section.symptoms.subsubheading.12"></h4>
+
+<ul data-i18n="section.symptoms.list.12"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.13"></h4>
+
+<ul data-i18n="section.symptoms.list.13"></ul>
+
+<h4 data-i18n="section.symptoms.subsubheading.14"></h4>
+
+<ul data-i18n="section.symptoms.list.14"></ul>
+</div>
+<h2 id="triage">
+
+<span data-i18n="section.triage.span.1"></span>
+</h2>
+
+<p data-i18n="section.triage.body.p.1"></p>
+
+<table data-i18n="section.triage.table.1"></table>
+<div class="callout">
+
+<strong data-i18n="section.triage.strong.1"></strong>
+
+<span data-i18n="section.triage.span.2"></span>
+</div>
+<h2 id="cierre">
+
+<span data-i18n="section.cierre.span.1"></span>
+</h2>
+
+<p data-i18n="section.cierre.body.p.1"></p>
+<div class="cross-cta">
+<a href="rag.html">
+
+<span class="cta-eyebrow" data-i18n="section.cierre.span.2"></span>
+
+<span class="cta-title" data-i18n="section.cierre.span.3"></span>
+</a>
+<a href="langchain.html">
+
+<span class="cta-eyebrow" data-i18n="section.cierre.span.4"></span>
+
+<span class="cta-title" data-i18n="section.cierre.span.5"></span>
+</a>
+<a href="llamaindex.html">
+
+<span class="cta-eyebrow" data-i18n="section.cierre.span.6"></span>
+
+<span class="cta-title" data-i18n="section.cierre.span.7"></span>
+</a>
+</div>
+<footer>
+  <span data-i18n="section.cierre.span.6"></span>
+  <p class="footer-meta">
+    <span data-i18n="footer.author"></span>
+    · <a href="https://github.com/elmago/rag_lab" target="_blank" rel="noopener">GitHub</a>
+    · <span data-i18n="footer.versions"></span>
+  </p>
+</footer>
+</div>
+<script type="application/json" id="i18n-data">
+{
+  "hero.div.1": {
+    "es": "Tutorial · Troubleshooting · FAQ",
+    "en": "Tutorial · Troubleshooting · FAQ"
+  },
+  "hero.span.1": {
+    "es": "Troubleshooting y FAQ de un RAG",
+    "en": "RAG troubleshooting &amp; FAQ"
+  },
+  "hero.body.p.1": {
+    "es": "Catálogo práctico para cuando algo no funciona: pitfalls clásicos, preguntas frecuentes, y un mapa de síntomas → causas posibles que vas a poder usar como checklist cuando un RAG en producción se porta raro.",
+    "en": "Practical catalog for when something stops working: classic pitfalls, frequently asked questions, and a symptom-to-likely-cause map you can use as a checklist when a production RAG starts behaving oddly."
+  },
+  "hero.meta.1": {
+    "es": "\n<span>Nivel: intermedio<\/span>\n<span>Lectura: ~15 min<\/span>\n<span>Referencia: úsalo como checklist<\/span>\n",
+    "en": "\n<span>Level: intermediate<\/span>\n<span>Reading: ~15 min<\/span>\n<span>Use it as a checklist<\/span>\n"
+  },
+  "toc.nav.1": {
+    "es": "\n<h2>Contenido<\/h2>\n<ol>\n<li><a href=\"#pitfalls\">Pitfalls clásicos<\/a><\/li>\n<li><a href=\"#faq\">Preguntas frecuentes<\/a><\/li>\n<li><a href=\"#symptoms\">Síntomas → causas posibles<\/a><\/li>\n<li><a href=\"#triage\">Triage: ¿retrieval, generation u orquestación?<\/a><\/li>\n<li><a href=\"#cierre\">Volver al hub<\/a><\/li>\n<\/ol>\n",
+    "en": "\n<h2>Contents<\/h2>\n<ol>\n<li><a href=\"#pitfalls\">Classic pitfalls<\/a><\/li>\n<li><a href=\"#faq\">Frequently asked questions<\/a><\/li>\n<li><a href=\"#symptoms\">Symptoms → likely causes<\/a><\/li>\n<li><a href=\"#triage\">Triage: retrieval, generation, or orchestration?<\/a><\/li>\n<li><a href=\"#cierre\">Back to the hub<\/a><\/li>\n<\/ol>\n"
+  },
+  "intro.body.p.1": {
+    "es": "Este archivo es un compañero de <a href=\"rag.html\">rag.html<\/a>. La idea: cuando algo no anda, abrirlo, ir a la sección que matchea tu síntoma, y tener una lista de causas posibles para ir tachando una por una. No reemplaza el debugging real — pero te da un punto de partida y evita que pierdas tiempo investigando cosas en el orden equivocado.",
+    "en": "This file is a companion to <a href=\"rag.html\">rag.html<\/a>. The idea: when something breaks, open it, jump to the section that matches your symptom, and walk down a list of likely causes one by one. It doesn't replace real debugging — but it gives you a starting point and keeps you from investigating things in the wrong order."
+  },
+  "section.pitfalls.span.1": {
+    "es": "1. Pitfalls clásicos",
+    "en": "1. Classic pitfalls"
+  },
+  "section.pitfalls.body.p.1": {
+    "es": "Seis errores que se ven una y otra vez en los RAGs de producción. Si tu sistema falla, empezá descartando esto antes de mirar más profundo.",
+    "en": "Six mistakes you see over and over in production RAGs. If your system is failing, rule these out before you dig deeper."
+  },
+  "section.pitfalls.callout.1": {
+    "es": "<strong>Pitfall 1.<\/strong> <strong>Cambiar el modelo de embeddings sin reembeber.<\/strong> Los vectores nuevos viven en otro espacio que los viejos, las distancias dejan de tener sentido y la similitud devuelve basura. Regla: cambiar el modelo implica re-ingestar todo el corpus.",
+    "en": "<strong>Pitfall 1.<\/strong> <strong>Switching the embedding model without re-embedding.<\/strong> The new vectors live in a different space than the old ones, distances stop being meaningful, and similarity returns garbage. Rule: changing the model means re-ingesting the entire corpus."
+  },
+  "section.pitfalls.callout.2": {
+    "es": "<strong>Pitfall 2.<\/strong> <strong>Confundir similitud con relevancia.<\/strong> Dos textos pueden ser muy similares vectorialmente y no contestar la pregunta. El reranker existe precisamente para esto: el bi-encoder marca candidatos, el cross-encoder decide cuáles realmente responden.",
+    "en": "<strong>Pitfall 2.<\/strong> <strong>Mistaking similarity for relevance.<\/strong> Two texts can be vectorially close and still fail to answer the question. The reranker exists for this: the bi-encoder marks candidates, the cross-encoder decides which actually answer."
+  },
+  "section.pitfalls.callout.3": {
+    "es": "<strong>Pitfall 3.<\/strong> <strong>Asumir que \"más contexto es mejor\".<\/strong> Pasarle 20 chunks al LLM no garantiza mejor respuesta — sufre el efecto \"lost in the middle\" y se diluye. 3-5 chunks bien rankeados suele ser óptimo.",
+    "en": "<strong>Pitfall 3.<\/strong> <strong>Assuming \"more context is better\".<\/strong> Feeding the LLM 20 chunks doesn't guarantee a better answer — it suffers from \"lost in the middle\" and dilutes attention. 3-5 well-ranked chunks is usually the sweet spot."
+  },
+  "section.pitfalls.callout.4": {
+    "es": "<strong>Pitfall 4.<\/strong> <strong>No tener un \"no sé\".<\/strong> Si no instruís al modelo a decir \"no encontré información en el contexto\" cuando los chunks no responden, va a inventar. Una línea en el system prompt previene la mitad de las alucinaciones del producto.",
+    "en": "<strong>Pitfall 4.<\/strong> <strong>Having no \"I don't know\".<\/strong> If you don't tell the model to say \"I couldn't find this in the context\" when chunks don't answer, it will invent. One line in the system prompt prevents half the product's hallucinations."
+  },
+  "section.pitfalls.callout.5": {
+    "es": "<strong>Pitfall 5.<\/strong> <strong>Tokenizer no alineado al embedder.<\/strong> Si chunkeás contando tokens con un tokenizer A pero embedeás con un modelo B (otro tokenizer), un chunk que vos creés que mide 500 tokens puede medir 700 para B — y el embedder trunca silenciosamente el final del chunk.",
+    "en": "<strong>Pitfall 5.<\/strong> <strong>Tokenizer not aligned with the embedder.<\/strong> If you chunk by counting tokens with tokenizer A but embed with model B (a different tokenizer), a chunk you think measures 500 tokens can measure 700 to B — and the embedder silently truncates the tail."
+  },
+  "section.pitfalls.callout.6": {
+    "es": "<strong>Pitfall 6.<\/strong> <strong>IDs de chunk no deterministas.<\/strong> Si los IDs cambian cada vez que ingestás, no podés actualizar — sólo duplicar. Tu colección crece y crece. Hashea el contenido (o usa un esquema estable) para que la re-ingesta sea idempotente.",
+    "en": "<strong>Pitfall 6.<\/strong> <strong>Non-deterministic chunk IDs.<\/strong> If IDs change every time you ingest, you can't update — only duplicate. Your collection grows and grows. Hash the content (or use a stable scheme) so re-ingestion is idempotent."
+  },
+  "section.faq.span.1": {
+    "es": "2. Preguntas frecuentes",
+    "en": "2. Frequently asked questions"
+  },
+  "section.faq.body.p.1": {
+    "es": "Las preguntas que casi siempre aparecen cuando alguien empieza a construir o a operar un RAG. Respuestas cortas y opinionated; el detalle técnico vive en <a href=\"rag.html\">rag.html<\/a>.",
+    "en": "The questions that come up almost every time someone starts building or operating a RAG. Short and opinionated answers; the technical depth lives in <a href=\"rag.html\">rag.html<\/a>."
+  },
+  "section.faq.subheading.1": {
+    "es": "¿Cuál es la diferencia entre RAG y fine-tuning?",
+    "en": "What's the difference between RAG and fine-tuning?"
+  },
+  "section.faq.body.p.2": {
+    "es": "RAG <em>inyecta<\/em> conocimiento en el prompt en tiempo de query — el modelo no aprende nada, lo lee y lo olvida. Fine-tuning <em>cambia<\/em> los pesos del modelo, así que aprende estilo o dominio. RAG es la herramienta correcta para datos que cambian, hechos auditables, y conocimiento privado. Fine-tuning es para tono, formato o dominios técnicos especializados. La mayoría de los productos GenAI usan RAG; muy pocos necesitan fine-tuning.",
+    "en": "RAG <em>injects<\/em> knowledge into the prompt at query time — the model doesn't learn anything, it reads and forgets. Fine-tuning <em>changes<\/em> the model's weights, so it learns style or domain. RAG is the right tool for changing data, auditable facts, and private knowledge. Fine-tuning is for tone, formatting, or highly specialized technical domains. Most GenAI products use RAG; very few need fine-tuning."
+  },
+  "section.faq.subheading.2": {
+    "es": "¿Cuántos chunks tengo que recuperar?",
+    "en": "How many chunks should I retrieve?"
+  },
+  "section.faq.body.p.3": {
+    "es": "Patrón estándar: recuperar 20-30 candidatos del vector store, rerankear, y mandarle al LLM los 3-5 mejores. La fase de retrieve maximiza <em>recall<\/em> (que la respuesta esté en el conjunto), la de rerank maximiza <em>precision<\/em> (que llegue al prompt sólo lo bueno). Recuperar pocos te puede dejar sin la respuesta; recuperar muchos sin rerankear te diluye el contexto.",
+    "en": "Standard pattern: retrieve 20-30 candidates from the vector store, rerank, and send the LLM the top 3-5. Retrieve maximizes <em>recall<\/em> (the answer is in the set), rerank maximizes <em>precision<\/em> (only the good ones reach the prompt). Retrieving too few can miss the answer; retrieving many without reranking dilutes context."
+  },
+  "section.faq.subheading.3": {
+    "es": "¿Necesito hybrid search?",
+    "en": "Do I need hybrid search?"
+  },
+  "section.faq.body.p.4": {
+    "es": "Si tus queries dependen de <strong>terminología exacta<\/strong> — códigos, nombres de productos, identificadores, números — sí. La búsqueda vectorial es buena con paráfrasis pero pésima con strings literales. Hybrid (vector + BM25 keyword) cubre los dos casos. Si tus queries son siempre conversacionales, el vector solo alcanza.",
+    "en": "If your queries depend on <strong>exact terminology<\/strong> — product codes, names, IDs, numbers — yes. Vector search is great at paraphrasing but terrible with literal strings. Hybrid (vector + BM25 keyword) covers both cases. If your queries are always conversational, vector alone is fine."
+  },
+  "section.faq.subheading.4": {
+    "es": "¿Qué modelo de embeddings uso?",
+    "en": "Which embedding model should I use?"
+  },
+  "section.faq.body.p.5": {
+    "es": "Para arrancar: <code>text-embedding-3-small<\/code> de OpenAI (barato, multilenguaje, decente). Si necesitás open source: <code>BGE-M3<\/code> o <code>gte-multilingual-base<\/code>. Lo importante: el modelo tiene que matchear tu idioma y tu tipo de documentos. Y una vez elegido, no lo cambies sin re-embedir todo (ver Pitfall 1).",
+    "en": "To start: OpenAI's <code>text-embedding-3-small<\/code> (cheap, multilingual, decent). If you need open source: <code>BGE-M3<\/code> or <code>gte-multilingual-base<\/code>. The key thing: the model has to match your language and your document type. And once chosen, don't switch it without re-embedding everything (see Pitfall 1)."
+  },
+  "section.faq.subheading.5": {
+    "es": "¿Cómo decido el tamaño de chunk?",
+    "en": "How do I decide chunk size?"
+  },
+  "section.faq.body.p.6": {
+    "es": "Default razonable: 500 tokens con 100 de overlap. Más chico (200-300) → mejor precisión, peor contexto. Más grande (800-1000) → más contexto por chunk, menos selectivo. Si tus documentos son prosa larga, sweet spot ~500. Si son listas o tablas estructuradas, considerá chunks más chicos. Iterá: si el reranker descarta consistentemente lo recuperado, probablemente los chunks son demasiado grandes.",
+    "en": "Reasonable default: 500 tokens with 100 of overlap. Smaller (200-300) → better precision, less context. Larger (800-1000) → more context per chunk, less selective. If your documents are long prose, sweet spot is ~500. If they're lists or structured tables, consider smaller chunks. Iterate: if the reranker consistently discards what was retrieved, your chunks are probably too large."
+  },
+  "section.faq.subheading.6": {
+    "es": "¿Vale la pena un reranker?",
+    "en": "Is a reranker worth it?"
+  },
+  "section.faq.body.p.7": {
+    "es": "Casi siempre sí. Agrega 50-200ms de latencia, pero a cambio reduce los tokens que mandás al LLM (más barato, más rápido en generación) y mejora la precisión en órdenes de magnitud. La excepción: si tu pipeline es ultra-latency-sensitive (chat real-time, &lt;500ms total) y los retrieves ya son buenos, podés skipearlo.",
+    "en": "Almost always yes. Adds 50-200ms of latency, but in return cuts the tokens you send to the LLM (cheaper, faster generation) and improves precision by orders of magnitude. Exception: if your pipeline is ultra-latency-sensitive (real-time chat, &lt;500ms total) and retrieves are already good, you can skip it."
+  },
+  "section.faq.subheading.7": {
+    "es": "¿Cómo evalúo si mi RAG funciona?",
+    "en": "How do I know if my RAG is working?"
+  },
+  "section.faq.body.p.8": {
+    "es": "Construite un <strong>golden set<\/strong>: 30-100 pares (pregunta, respuesta esperada, chunks relevantes). Medí: <em>recall@k<\/em> en el retriever (¿el chunk correcto está en los k recuperados?), <em>faithfulness<\/em> en el generador (¿la respuesta solo usa info del contexto?), <em>answer relevance<\/em> (¿la respuesta cubre la pregunta?). Sin golden set, los cambios son a ciegas.",
+    "en": "Build a <strong>golden set<\/strong>: 30-100 (question, expected answer, relevant chunks) tuples. Measure: <em>recall@k<\/em> on the retriever (is the right chunk in the top-k?), <em>faithfulness<\/em> on the generator (does the answer only use context info?), <em>answer relevance<\/em> (does the answer cover the question?). Without a golden set, every change is blind."
+  },
+  "section.faq.subheading.8": {
+    "es": "¿Cómo manejo updates de los documentos?",
+    "en": "How do I handle document updates?"
+  },
+  "section.faq.body.p.9": {
+    "es": "Tres niveles: (1) <strong>append-only<\/strong>: ingestás documentos nuevos sin tocar los viejos. Funciona para corpus que crecen, no para corpus que cambian. (2) <strong>upsert con IDs deterministas<\/strong>: re-ingestás y los chunks con el mismo hash sobrescriben los viejos. Funciona si el chunking es estable. (3) <strong>full reindex<\/strong>: borrás la colección y reingestás todo. Único safe si cambiaste embedder, chunker o tokenizer.",
+    "en": "Three levels: (1) <strong>append-only<\/strong>: ingest new documents without touching old ones. Works for growing corpora, not for changing ones. (2) <strong>upsert with deterministic IDs<\/strong>: re-ingest and chunks with the same hash overwrite the old ones. Works if chunking is stable. (3) <strong>full reindex<\/strong>: drop the collection and re-ingest everything. The only safe path if you changed embedder, chunker, or tokenizer."
+  },
+  "section.faq.subheading.9": {
+    "es": "¿Cómo prevengo prompt injection?",
+    "en": "How do I prevent prompt injection?"
+  },
+  "section.faq.body.p.10": {
+    "es": "No hay solución dura, sólo mitigaciones. Tres capas: (a) separación estructural — la pregunta del usuario va en su propio <code>HumanMessage<\/code>, nunca concatenada al system. (b) delimitadores con nonce aleatorio por request — <code>&lt;question_a8f3&gt;...&lt;/question_a8f3&gt;<\/code> para que un atacante no pueda cerrar el bloque. (c) sanitización — strip control chars, cap de longitud. Y crucial: si el LLM ignora el system, no hay nonce que valga.",
+    "en": "There's no hard solution, only mitigations. Three layers: (a) structural separation — the user's question lives in its own <code>HumanMessage<\/code>, never concatenated into the system. (b) random per-request nonce delimiters — <code>&lt;question_a8f3&gt;...&lt;/question_a8f3&gt;<\/code> so an attacker can't close the block. (c) sanitization — strip control chars, cap length. And crucially: if the LLM ignores the system, no nonce will save you."
+  },
+  "section.symptoms.span.1": {
+    "es": "3. Síntomas → causas posibles",
+    "en": "3. Symptoms → likely causes"
+  },
+  "section.symptoms.body.p.1": {
+    "es": "El RAG en producción no falla en abstracto: falla con un síntoma específico. Cada síntoma de abajo lista las causas más probables, agrupadas por capa (retrieval / generation / infra). Recorré la lista de la más a la menos probable; tachá lo que descartes.",
+    "en": "Production RAGs don't fail in the abstract: they fail with a specific symptom. Each symptom below lists the most likely causes, grouped by layer (retrieval / generation / infra). Walk down the list from most to least likely; cross out what you rule out."
+  },
+  "section.symptoms.subheading.1": {
+    "es": "Respuestas inconsistentes",
+    "en": "Inconsistent answers"
+  },
+  "section.symptoms.body.p.2": {
+    "es": "La misma pregunta devuelve respuestas distintas en intentos seguidos.",
+    "en": "The same question returns different answers across consecutive runs."
+  },
+  "section.symptoms.subsubheading.1": {
+    "es": "Generation",
+    "en": "Generation"
+  },
+  "section.symptoms.list.1": {
+    "es": "\n<li><strong>Temperatura alta<\/strong> → variabilidad por sampling. Empezá bajándola a 0 o 0.1.<\/li>\n<li><strong>System prompt no determinista<\/strong> → si el system contiene timestamp o random, el LLM ve un prompt diferente cada vez.<\/li>\n",
+    "en": "\n<li><strong>High temperature<\/strong> → sampling variance. Start by dropping it to 0 or 0.1.<\/li>\n<li><strong>Non-deterministic system prompt<\/strong> → if the system includes a timestamp or random value, the LLM sees a different prompt every time.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.2": {
+    "es": "Retrieval",
+    "en": "Retrieval"
+  },
+  "section.symptoms.list.2": {
+    "es": "\n<li><strong>Top-k con casi-empates<\/strong> → si los chunks 4-5-6 tienen scores similares, el orden cambia con perturbaciones triviales (carga del servidor, índice ANN no determinista). Subí <code>top_k<\/code> y dejá que el reranker decida.<\/li>\n<li><strong>Index stale<\/strong> → otra ingesta corriendo en paralelo modificó la colección entre llamadas.<\/li>\n<li><strong>Vector DB con replicas inconsistentes<\/strong> → consulta a un nodo, otra a otro, distintos snapshots.<\/li>\n",
+    "en": "\n<li><strong>Top-k near-ties<\/strong> → if chunks 4-5-6 have similar scores, ordering shifts with trivial perturbations (server load, non-deterministic ANN index). Raise <code>top_k<\/code> and let the reranker decide.<\/li>\n<li><strong>Stale index<\/strong> → another ingest running in parallel modified the collection between calls.<\/li>\n<li><strong>Vector DB with inconsistent replicas<\/strong> → one query hits one node, another hits a different one, different snapshots.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.3": {
+    "es": "Infra",
+    "en": "Infra"
+  },
+  "section.symptoms.list.3": {
+    "es": "\n<li><strong>Cache stale<\/strong> → un cache (de embedding, de retrieval, o de respuestas) devuelve resultados viejos. Limpialo y revisar TTLs.<\/li>\n<li><strong>Race conditions en ingest<\/strong> → varios writers escribiendo el mismo doc con IDs no deterministas → duplicados.<\/li>\n<li><strong>Retries con backoff distinto<\/strong> → un retry pega a un nodo distinto con menos carga y devuelve más rápido pero con menos contexto.<\/li>\n",
+    "en": "\n<li><strong>Stale cache<\/strong> → an embedding/retrieval/answer cache returns old results. Flush it and review TTLs.<\/li>\n<li><strong>Ingest race conditions<\/strong> → multiple writers writing the same doc with non-deterministic IDs → duplicates.<\/li>\n<li><strong>Retries with mismatched backoff<\/strong> → a retry hits a less-loaded node and returns faster but with less context.<\/li>\n"
+  },
+  "section.symptoms.subheading.2": {
+    "es": "Hallucinations",
+    "en": "Hallucinations"
+  },
+  "section.symptoms.body.p.3": {
+    "es": "El modelo inventa información que no está en el contexto, presentándola con seguridad.",
+    "en": "The model invents information that isn't in the context, delivering it with confidence."
+  },
+  "section.symptoms.subsubheading.4": {
+    "es": "Generation",
+    "en": "Generation"
+  },
+  "section.symptoms.list.4": {
+    "es": "\n<li><strong>Falta el \"no sé\"<\/strong> en el system prompt → el modelo prefiere inventar antes que admitir ignorancia (ver Pitfall 4).<\/li>\n<li><strong>Contexto truncado<\/strong> → tus chunks no caben enteros y el LLM \"rellena\" lo que falta.<\/li>\n<li><strong>Prompt injection<\/strong> → el contenido recuperado contiene instrucciones que sobreescriben el system. Aplicá las 3 capas (estructural / nonce / sanitización).<\/li>\n<li><strong>Temperatura demasiado alta<\/strong> → más creatividad ≠ más fidelidad.<\/li>\n",
+    "en": "\n<li><strong>Missing \"I don't know\"<\/strong> in the system prompt → the model prefers to invent rather than admit ignorance (see Pitfall 4).<\/li>\n<li><strong>Truncated context<\/strong> → your chunks don't fit whole and the LLM \"fills in\" the gaps.<\/li>\n<li><strong>Prompt injection<\/strong> → retrieved content contains instructions that override the system. Apply the 3 layers (structural / nonce / sanitization).<\/li>\n<li><strong>Temperature too high<\/strong> → more creativity ≠ more faithfulness.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.5": {
+    "es": "Retrieval",
+    "en": "Retrieval"
+  },
+  "section.symptoms.list.5": {
+    "es": "\n<li><strong>Chunks irrelevantes pero cercanos<\/strong> → similitud ≠ relevancia. Si no estás rerankeando, agregá un cross-encoder (ver Pitfall 2).<\/li>\n<li><strong>Top-k muy bajo<\/strong> → la respuesta no fue recuperada. Subí <code>top_k<\/code>.<\/li>\n<li><strong>Metadata filter excluyendo de más<\/strong> → un filtro mal armado puede dejar afuera los chunks correctos. Revisá los logs del query con el <code>where<\/code> aplicado.<\/li>\n<li><strong>Chunking malo<\/strong> → la respuesta está partida entre dos chunks; ninguno por sí solo la contiene.<\/li>\n",
+    "en": "\n<li><strong>Irrelevant but close chunks<\/strong> → similarity ≠ relevance. If you're not reranking, add a cross-encoder (see Pitfall 2).<\/li>\n<li><strong>Top-k too low<\/strong> → the answer wasn't retrieved. Raise <code>top_k<\/code>.<\/li>\n<li><strong>Over-filtering metadata<\/strong> → a poorly written filter can exclude the right chunks. Inspect query logs with the applied <code>where<\/code>.<\/li>\n<li><strong>Bad chunking<\/strong> → the answer is split across two chunks; neither alone contains it.<\/li>\n"
+  },
+  "section.symptoms.subheading.3": {
+    "es": "Retrieval malo / documentos irrelevantes",
+    "en": "Bad retrieval / irrelevant documents"
+  },
+  "section.symptoms.body.p.4": {
+    "es": "Los chunks recuperados no tienen que ver con la pregunta — el reranker tampoco salva la situación.",
+    "en": "The retrieved chunks have nothing to do with the question — and the reranker doesn't save the day either."
+  },
+  "section.symptoms.subsubheading.6": {
+    "es": "Chunking",
+    "en": "Chunking"
+  },
+  "section.symptoms.list.6": {
+    "es": "\n<li><strong>Chunks demasiado grandes<\/strong> → cada vector es un \"promedio\" del contenido y no representa nada bien.<\/li>\n<li><strong>Chunks demasiado chicos<\/strong> → contexto insuficiente, los embeddings agarran ruido.<\/li>\n<li><strong>Sin overlap<\/strong> → conceptos al borde se pierden entre chunks.<\/li>\n<li><strong>Cortado por carácter<\/strong> → palabras partidas, chunks ilegibles → embeddings basura.<\/li>\n",
+    "en": "\n<li><strong>Chunks too large<\/strong> → each vector is an \"average\" of the content and represents nothing well.<\/li>\n<li><strong>Chunks too small<\/strong> → not enough context, embeddings pick up noise.<\/li>\n<li><strong>No overlap<\/strong> → concepts straddling boundaries are lost between chunks.<\/li>\n<li><strong>Cut by character<\/strong> → split words, unreadable chunks → garbage embeddings.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.7": {
+    "es": "Embeddings",
+    "en": "Embeddings"
+  },
+  "section.symptoms.list.7": {
+    "es": "\n<li><strong>Modelo distinto al de la ingesta<\/strong> → ver Pitfall 1: vectores en espacios distintos = similitud sin sentido.<\/li>\n<li><strong>Modelo no apto para el idioma<\/strong> → un embedder solo en inglés contra documentos en español = retrieval pobre.<\/li>\n<li><strong>Modelo demasiado genérico<\/strong> → para dominios técnicos pesados (legal, médico, código), un modelo de propósito general puede no distinguir matices.<\/li>\n",
+    "en": "\n<li><strong>Different model than ingest<\/strong> → see Pitfall 1: vectors in different spaces = meaningless similarity.<\/li>\n<li><strong>Model not suited to the language<\/strong> → an English-only embedder against Spanish documents = poor retrieval.<\/li>\n<li><strong>Model too generic<\/strong> → for heavy technical domains (legal, medical, code), a general-purpose model may not capture nuance.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.8": {
+    "es": "Pipeline",
+    "en": "Pipeline"
+  },
+  "section.symptoms.list.8": {
+    "es": "\n<li><strong>Top-k mal calibrado<\/strong> → muy bajo (recall pobre) o muy alto (saturás de ruido al reranker).<\/li>\n<li><strong>Falta hybrid search<\/strong> → para queries con códigos / nombres / IDs, vector solo no alcanza.<\/li>\n<li><strong>Reranker ausente o mal modelo<\/strong> → sin segundo pase, la similitud cruda es ruidosa.<\/li>\n<li><strong>Metadata filtering roto<\/strong> → filtros que no se aplican o que matchean cero.<\/li>\n<li><strong>Tokenizer mismatch<\/strong> → ver Pitfall 5: chunks truncados al embedder.<\/li>\n",
+    "en": "\n<li><strong>Miscalibrated top-k<\/strong> → too low (poor recall) or too high (you flood the reranker with noise).<\/li>\n<li><strong>Missing hybrid search<\/strong> → for queries with codes / names / IDs, vector alone doesn't cut it.<\/li>\n<li><strong>No reranker, or wrong model<\/strong> → without a second pass, raw similarity is noisy.<\/li>\n<li><strong>Broken metadata filtering<\/strong> → filters that don't apply or match nothing.<\/li>\n<li><strong>Tokenizer mismatch<\/strong> → see Pitfall 5: chunks truncated at the embedder.<\/li>\n"
+  },
+  "section.symptoms.subheading.4": {
+    "es": "Latencia alta",
+    "en": "High latency"
+  },
+  "section.symptoms.body.p.5": {
+    "es": "El pipeline tarda demasiado. Antes de optimizar a ciegas, mirá dónde se va el tiempo.",
+    "en": "The pipeline takes too long. Before optimizing blindly, see where the time goes."
+  },
+  "section.symptoms.subsubheading.9": {
+    "es": "Pipeline",
+    "en": "Pipeline"
+  },
+  "section.symptoms.list.9": {
+    "es": "\n<li><strong>Pasos secuenciales que podrían ser paralelos<\/strong> → si expandís a N queries, hacé los retrieves con <code>.batch()<\/code> / <code>asyncio.gather<\/code>, no en loop.<\/li>\n<li><strong>Cache miss en cada request<\/strong> → embeddings de queries comunes deberían estar cacheados.<\/li>\n<li><strong>Reranker en bottleneck<\/strong> → batch size 1, modelo grande, sin GPU. Probá un modelo más chico o ajustá el batch.<\/li>\n",
+    "en": "\n<li><strong>Sequential steps that could be parallel<\/strong> → if you expand to N queries, do the retrieves with <code>.batch()<\/code> / <code>asyncio.gather<\/code>, not in a loop.<\/li>\n<li><strong>Cache miss every request<\/strong> → embeddings of common queries should be cached.<\/li>\n<li><strong>Reranker bottlenecked<\/strong> → batch size 1, large model, no GPU. Try a smaller model or tune the batch.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.10": {
+    "es": "Generation",
+    "en": "Generation"
+  },
+  "section.symptoms.list.10": {
+    "es": "\n<li><strong>Prompt demasiado largo<\/strong> → más tokens = más latencia y más costo. Reducí <code>top_n<\/code> al rerankear.<\/li>\n<li><strong>Modelo más grande de lo necesario<\/strong> → ¿realmente necesitás GPT-4-class para un FAQ chatbot? Probá modelos más livianos.<\/li>\n<li><strong>Streaming desactivado<\/strong> → si no streameás, el usuario espera la respuesta completa antes de ver nada. Activá streaming aunque sea para mejorar la latencia <em>percibida<\/em>.<\/li>\n",
+    "en": "\n<li><strong>Prompt too long<\/strong> → more tokens = more latency and cost. Reduce <code>top_n<\/code> when reranking.<\/li>\n<li><strong>Model larger than needed<\/strong> → do you really need GPT-4-class for a FAQ chatbot? Try lighter models.<\/li>\n<li><strong>Streaming off<\/strong> → if you don't stream, the user waits for the full answer before seeing anything. Turn it on to at least improve <em>perceived<\/em> latency.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.11": {
+    "es": "Infra",
+    "en": "Infra"
+  },
+  "section.symptoms.list.11": {
+    "es": "\n<li><strong>Timeouts mal configurados<\/strong> → un timeout corto en el LLM corta la respuesta a la mitad y dispara retry. Total latency se duplica.<\/li>\n<li><strong>Retries en serie<\/strong> → cada retry agrega segundos. Verificá la política de retry de tu cliente.<\/li>\n<li><strong>Vector DB lenta<\/strong> → índice no optimizado (HNSW con M muy alto, IVF con nlist mal), o disco saturado.<\/li>\n",
+    "en": "\n<li><strong>Misconfigured timeouts<\/strong> → a tight LLM timeout cuts the answer mid-way and triggers a retry. Total latency doubles.<\/li>\n<li><strong>Serial retries<\/strong> → each retry adds seconds. Check your client's retry policy.<\/li>\n<li><strong>Slow vector DB<\/strong> → unoptimized index (HNSW with too-high M, badly tuned IVF nlist), or saturated disk.<\/li>\n"
+  },
+  "section.symptoms.subheading.5": {
+    "es": "Degradación reciente",
+    "en": "Recent degradation"
+  },
+  "section.symptoms.body.p.6": {
+    "es": "Funcionaba bien y de pronto empeoró sin que vos hicieras nada (o eso parece).",
+    "en": "It used to work and suddenly got worse without you changing anything (or so it seems)."
+  },
+  "section.symptoms.subsubheading.12": {
+    "es": "Cambios silenciosos del entorno",
+    "en": "Silent environment changes"
+  },
+  "section.symptoms.list.12": {
+    "es": "\n<li><strong>Modelo upstream cambió<\/strong> → OpenAI / Anthropic actualizaron un modelo bajo el mismo alias (<code>gpt-4o-2024-08-06<\/code> → <code>gpt-4o-latest<\/code>). Pinneá la versión exacta.<\/li>\n<li><strong>Embedding model deprecated<\/strong> → si dependías de uno legacy, puede haber sido reemplazado en el backend del proveedor.<\/li>\n<li><strong>Tokenizer drift<\/strong> → versión nueva de <code>tiktoken<\/code> con tokenización ligeramente distinta → chunks de tamaño distinto.<\/li>\n",
+    "en": "\n<li><strong>Upstream model changed<\/strong> → OpenAI / Anthropic shifted a model under the same alias (<code>gpt-4o-2024-08-06<\/code> → <code>gpt-4o-latest<\/code>). Pin the exact version.<\/li>\n<li><strong>Embedding model deprecated<\/strong> → if you were on a legacy one, it may have been replaced on the provider side.<\/li>\n<li><strong>Tokenizer drift<\/strong> → a new <code>tiktoken<\/code> release tokenizes slightly differently → different chunk sizes.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.13": {
+    "es": "Datos",
+    "en": "Data"
+  },
+  "section.symptoms.list.13": {
+    "es": "\n<li><strong>Index stale<\/strong> → contenido nuevo no fue ingestado.<\/li>\n<li><strong>Index inflado<\/strong> → re-ingestaste con IDs no deterministas y duplicaste todo (ver Pitfall 6). Más vectores = más ruido.<\/li>\n<li><strong>Cambio en el contenido fuente<\/strong> → la fuente cambió de formato y el loader lo parsea peor.<\/li>\n",
+    "en": "\n<li><strong>Stale index<\/strong> → new content wasn't ingested.<\/li>\n<li><strong>Bloated index<\/strong> → you re-ingested with non-deterministic IDs and duplicated everything (see Pitfall 6). More vectors = more noise.<\/li>\n<li><strong>Source content changed format<\/strong> → the source switched format and the loader now parses it worse.<\/li>\n"
+  },
+  "section.symptoms.subsubheading.14": {
+    "es": "Infra",
+    "en": "Infra"
+  },
+  "section.symptoms.list.14": {
+    "es": "\n<li><strong>Vector DB migrated / reset<\/strong> → un deploy reseteó la colección, o cambió de versión y el formato del índice.<\/li>\n<li><strong>Cache envenenado<\/strong> → un valor erróneo se cacheó y todas las queries similares lo reusan.<\/li>\n<li><strong>Cambios de configuración invisibles<\/strong> → alguien tocó <code>top_k<\/code>, <code>chunk_size<\/code>, o el system prompt en un PR sin review.<\/li>\n",
+    "en": "\n<li><strong>Vector DB migrated / reset<\/strong> → a deploy wiped the collection, or upgraded its version and index format.<\/li>\n<li><strong>Poisoned cache<\/strong> → a wrong value got cached and similar queries keep reusing it.<\/li>\n<li><strong>Invisible config changes<\/strong> → someone tweaked <code>top_k<\/code>, <code>chunk_size<\/code>, or the system prompt in a PR without review.<\/li>\n"
+  },
+  "section.triage.span.1": {
+    "es": "4. Triage: ¿retrieval, generation u orquestación?",
+    "en": "4. Triage: retrieval, generation, or orchestration?"
+  },
+  "section.triage.body.p.1": {
+    "es": "Antes de tirar hipótesis, distinguí <strong>en qué capa<\/strong> está el problema. La diferencia entre \"el retriever no trae lo correcto\" y \"el LLM no usa lo que le doy\" cambia totalmente la lista de causas. Hay un truco simple para separarlas:",
+    "en": "Before brainstorming hypotheses, figure out <strong>which layer<\/strong> is broken. The difference between \"the retriever doesn't bring the right thing\" and \"the LLM ignores what I give it\" completely changes the candidate causes. There's a simple trick to separate them:"
+  },
+  "section.triage.table.1": {
+    "es": "\n<thead>\n<tr><th>Test<\/th><th>Resultado<\/th><th>Diagnóstico<\/th><\/tr>\n<\/thead>\n<tbody>\n<tr>\n<td>Mirá manualmente los chunks recuperados. ¿Contienen la respuesta?<\/td>\n<td>No<\/td>\n<td><strong>Retrieval problem.<\/strong> El retriever falló. Sección 3 → \"Retrieval malo\".<\/td>\n<\/tr>\n<tr>\n<td>Pasale al LLM los chunks correctos manualmente (bypassando el retriever). ¿Responde bien?<\/td>\n<td>No<\/td>\n<td><strong>Generation problem.<\/strong> El LLM no sabe usar el contexto, o el prompt está mal armado.<\/td>\n<\/tr>\n<tr>\n<td>El retriever trae lo correcto y el LLM responde bien aislado, pero juntos fallan.<\/td>\n<td>—<\/td>\n<td><strong>Orchestration problem.<\/strong> Cómo se conectan: cache stale, race conditions, retries, async/await mal usado, format mismatch entre el output del retriever y el input del prompt.<\/td>\n<\/tr>\n<\/tbody>\n",
+    "en": "\n<thead>\n<tr><th>Test<\/th><th>Result<\/th><th>Diagnosis<\/th><\/tr>\n<\/thead>\n<tbody>\n<tr>\n<td>Look manually at the retrieved chunks. Do they contain the answer?<\/td>\n<td>No<\/td>\n<td><strong>Retrieval problem.<\/strong> The retriever failed. Section 3 → \"Bad retrieval\".<\/td>\n<\/tr>\n<tr>\n<td>Manually feed the LLM the right chunks (bypassing the retriever). Does it answer well?<\/td>\n<td>No<\/td>\n<td><strong>Generation problem.<\/strong> The LLM doesn't know how to use the context, or the prompt is malformed.<\/td>\n<\/tr>\n<tr>\n<td>The retriever brings the right thing and the LLM responds well in isolation, but together they fail.<\/td>\n<td>—<\/td>\n<td><strong>Orchestration problem.<\/strong> How they connect: stale cache, race conditions, retries, mis-used async/await, format mismatch between retriever output and prompt input.<\/td>\n<\/tr>\n<\/tbody>\n"
+  },
+  "section.triage.strong.1": {
+    "es": "Atajo de bolsillo.",
+    "en": "Pocket shortcut."
+  },
+  "section.triage.span.2": {
+    "es": " Si la respuesta está mal pero los chunks correctos están en el contexto: <em>generation<\/em>. Si los chunks correctos no están: <em>retrieval<\/em>. Si todo individualmente funciona pero el flujo entero no: <em>orchestration<\/em>. En ese orden — siempre verificá retrieval primero, es la causa más común.",
+    "en": " If the answer is wrong but the right chunks are in the context: <em>generation<\/em>. If the right chunks aren't there: <em>retrieval<\/em>. If everything works individually but the whole flow doesn't: <em>orchestration<\/em>. In that order — always verify retrieval first, it's the most common cause."
+  },
+  "section.cierre.span.1": {
+    "es": "5. Volver al hub",
+    "en": "5. Back to the hub"
+  },
+  "section.cierre.body.p.1": {
+    "es": "Si llegaste hasta acá buscando una causa puntual y la encontraste, perfecto. Si querés profundizar la teoría detrás de cualquiera de estos pitfalls — <em>por qué<\/em> el chunking importa, <em>cómo<\/em> funciona RRF, <em>qué<\/em> hace exactamente un cross-encoder — todo eso vive en el tutorial principal:",
+    "en": "If you got here looking for a specific cause and found it, great. If you want to dig into the theory behind any of these pitfalls — <em>why<\/em> chunking matters, <em>how<\/em> RRF works, <em>what<\/em> a cross-encoder actually does — all of that lives in the main tutorial:"
+  },
+  "section.cierre.span.2": {
+    "es": "Hub conceptual",
+    "en": "Concept hub"
+  },
+  "section.cierre.span.3": {
+    "es": "Cómo funciona un RAG por dentro",
+    "en": "How a RAG actually works"
+  },
+  "section.cierre.span.4": {
+    "es": "Implementación",
+    "en": "Implementation"
+  },
+  "section.cierre.span.5": {
+    "es": "Engine LangChain",
+    "en": "LangChain engine"
+  },
+  "section.cierre.span.6": {
+    "es": "Implementación",
+    "en": "Implementation"
+  },
+  "section.cierre.span.7": {
+    "es": "Engine LlamaIndex",
+    "en": "LlamaIndex engine"
+  },
+  "breadcrumb.current": {
+    "es": "Troubleshooting y FAQ",
+    "en": "Troubleshooting & FAQ"
+  },
+  "breadcrumb.parent": {
+    "es": "Conceptos de RAG",
+    "en": "RAG concepts"
+  },
+  "siblings.rag": {
+    "es": "Conceptos",
+    "en": "Concepts"
+  },
+  "siblings.langchain": {
+    "es": "LangChain",
+    "en": "LangChain"
+  },
+  "siblings.llamaindex": {
+    "es": "LlamaIndex",
+    "en": "LlamaIndex"
+  },
+  "siblings.rag_faq": {
+    "es": "Troubleshooting",
+    "en": "Troubleshooting"
+  },
+  "footer.author": {
+    "es": "Por Diego · publicado el 2026-05-07",
+    "en": "By Diego · published 2026-05-07"
+  },
+  "footer.versions": {
+    "es": "Versiones probadas: LangChain 0.3.x · LlamaIndex 0.12.x · Python 3.13",
+    "en": "Tested versions: LangChain 0.3.x · LlamaIndex 0.12.x · Python 3.13"
+  }
+}
+</script>
+<script src="i18n.js"></script>
+<script>
+(function () {
+  // ---- Language toggle (EN default, persisted in localStorage) -------
+  const TITLES = {
+    en: 'RAG troubleshooting & FAQ · Tutorial',
+    es: 'Troubleshooting y FAQ de un RAG · Tutorial'
+  };
+
+  function setLang(lang) {
+    if (lang !== 'en' && lang !== 'es') lang = 'en';
+    document.body.classList.remove('lang-en', 'lang-es');
+    document.body.classList.add('lang-' + lang);
+    document.documentElement.setAttribute('lang', lang);
+    if (TITLES[lang]) document.title = TITLES[lang];
+    if (window.i18n) window.i18n.setLang(lang);
+    try { localStorage.setItem('tutorial_lang', lang); } catch (e) {}
+  }
+
+  let initialLang = 'en';
+  try {
+    const stored = localStorage.getItem('tutorial_lang');
+    if (stored === 'en' || stored === 'es') initialLang = stored;
+  } catch (e) {}
+  setLang(initialLang);
+  if (window.i18n) window.i18n.init('i18n/rag_faq.json', initialLang);
+
+  document.querySelectorAll('.lang-toggle button[data-lang]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setLang(btn.getAttribute('data-lang'));
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -17,10 +17,15 @@ const CHAT_ENDPOINT = 'http://localhost:8000/chat'
  * @returns The reply string from the backend.
  * @throws If the network request fails or the response is not ok.
  */
+export type ChatReply = {
+  reply: string
+  engine: Engine
+}
+
 export async function sendMessage(
   message: string,
   engine: Engine,
-): Promise<string> {
+): Promise<ChatReply> {
   const response = await fetch(CHAT_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -31,6 +36,5 @@ export async function sendMessage(
     throw new Error(`Backend responded with status ${response.status}`)
   }
 
-  const data = (await response.json()) as { reply: string }
-  return data.reply
+  return (await response.json()) as ChatReply
 }

@@ -10,6 +10,11 @@ dependencies = [
     "langchain-openai>=0.2.0",
     "langchain-community>=0.3.0",
     "langchain-chroma>=0.1.4",
+    "llama-index-core>=0.12.0",
+    "llama-index-llms-openai>=0.3.0",
+    "llama-index-embeddings-openai>=0.3.0",
+    "llama-index-vector-stores-chroma>=0.4.0",
+    "llama-index-readers-file>=0.4.0",
     "pypdf>=5.0.0",
     "python-dotenv>=1.0.1",
     "chromadb>=0.5.0",
@@ -20,3 +25,11 @@ dev = [
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
 ]
+evals = [
+    "ollama>=0.4.0",
+    "plotly>=5.24.0",
+    "pandas>=2.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -9,14 +9,16 @@ Execute the Langchain RAG ingestion pipeline.
 Run with the Bash tool (foreground, so the user sees the output):
 
 ```
-cd backend && uv run python -c "from app.services.langchain_rag.service import LangchainSrv; LangchainSrv().run_ingestion()"
+cd backend && uv run python -m tools.ingest
 ```
 
+Add `--reset` to drop the collection and manifest before reingesting (used when the chunk schema changes).
+
 This will:
-1. Scan `backend/app/data/` for PDFs and skip any already listed in `backend/app/data/ingested.txt`
-2. Split new PDFs into overlapping chunks (size=1000, overlap=200)
-3. Generate embeddings with OpenAI `text-embedding-3-small`
-4. Append them to the `langchain_rag` collection in ChromaDB (with `source` and `page` metadata)
-5. Record the newly processed filenames in `ingested.txt` — the collection is never dropped
+1. Scan `backend/app/data/` for PDFs and skip any already listed in `backend/app/data/ingested.json`
+2. Split new PDFs into token-based chunks (aligned with the embedding model's tokenizer)
+3. Generate embeddings with OpenAI `text-embedding-3-small` in batches
+4. Upsert them into the `langchain_rag` Chroma collection with deterministic IDs (`source:page:chunk_idx`) so re-ingesting is idempotent
+5. Record the processed filenames in `ingested.json`
 
 Report the output to the user (totals of PDFs, chunks, and final embedding count).

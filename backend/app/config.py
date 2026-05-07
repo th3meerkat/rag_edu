@@ -1,9 +1,23 @@
+import logging
+import os
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BACKEND_DIR / "app" / "data"
-INGESTED_MANIFEST = DATA_DIR / "ingested.json"
 ENV_PATH = BACKEND_DIR / ".env"
+
+
+def setup_logging() -> None:
+    """Configure root logging. Call after `load_dotenv` so `LOG_LEVEL` is read
+    from the .env. Falls back to INFO if unset or unrecognized."""
+    level = logging.getLevelNamesMapping().get(
+        os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO
+    )
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        force=True,
+    )
 
 POSITIONAL_WINDOW_PCT = 0.10
 

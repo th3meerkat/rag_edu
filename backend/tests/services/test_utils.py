@@ -1,40 +1,47 @@
-"""Regression tests for app.services.utils."""
+"""Regression tests for app.services.utils (framework-agnostic)."""
 from __future__ import annotations
 
 import json
 
 import pytest
-from langchain_core.documents import Document
 
-from app.services import utils
 from app.services.utils import (
     build_filter,
     detect_positional,
-    expand_queries,
     load_manifest,
-    rerank,
+    manifest_path,
+    rerank_texts,
     rrf_fuse,
     save_manifest,
 )
 
 
-# ---------- Manifest I/O ----------
+# ---------- Manifest I/O (per-engine) ----------
 
 class TestManifest:
     def test_load_missing_returns_empty(self, temp_manifest_path):
+        # temp_manifest_path points at .../ingested_test.json
         assert not temp_manifest_path.exists()
-        assert load_manifest() == {}
+        assert load_manifest("test") == {}
 
     def test_save_then_load_round_trip(self, temp_manifest_path, fake_manifest):
-        save_manifest(fake_manifest)
+        save_manifest("test", fake_manifest)
         assert temp_manifest_path.exists()
-        assert load_manifest() == fake_manifest
+        assert load_manifest("test") == fake_manifest
 
     def test_save_is_valid_json_utf8(self, temp_manifest_path):
-        save_manifest({"año.pdf": 3})
+        save_manifest("test", {"año.pdf": 3})
         raw = temp_manifest_path.read_text(encoding="utf-8")
         assert "año.pdf" in raw  # ensure_ascii=False preserves tildes
         assert json.loads(raw) == {"año.pdf": 3}
+
+    def test_per_engine_paths_are_isolated(self, manifest_dir):
+        """langchain and llamaindex manifests live in separate files."""
+        save_manifest("langchain", {"a.pdf": 1})
+        save_manifest("llamaindex", {"b.pdf": 2})
+        assert load_manifest("langchain") == {"a.pdf": 1}
+        assert load_manifest("llamaindex") == {"b.pdf": 2}
+        assert manifest_path("langchain") != manifest_path("llamaindex")
 
 
 # ---------- Positional detection ----------
@@ -59,7 +66,6 @@ class TestDetectPositional:
         assert detect_positional(msg) == expected
 
     def test_specific_pattern_wins_over_generic(self):
-        # "página 5" should take precedence over a bare "final".
         assert detect_positional("en la página 5 hay un final bonito") == ("pagina", 5)
 
     def test_no_pattern(self):
@@ -83,7 +89,6 @@ class TestBuildFilter:
         manifest = {"book.pdf": 100}
         where, where_doc = build_filter(("final", None), manifest)
         assert where_doc is None
-        # POSITIONAL_WINDOW_PCT=0.10 → window=10 → pages 90..99
         assert where == {
             "$and": [
                 {"source": "book.pdf"},
@@ -112,7 +117,6 @@ class TestBuildFilter:
         assert build_filter(("final", None), {}) == (None, None)
 
     def test_small_manifest_window_is_at_least_one(self):
-        # 3 pages → 10% = 0.3 → ceil = 1
         where, _ = build_filter(("final", None), {"tiny.pdf": 3})
         assert where == {
             "$and": [
@@ -126,100 +130,61 @@ class TestBuildFilter:
         assert build_filter(("desconocido", None), {}) == (None, None)
 
 
-# ---------- Query expansion ----------
-
-class TestExpandQueries:
-    def test_happy_path(self, echo_chat_openai):
-        queries = expand_queries("¿qué come el principito?")
-        assert queries == ["q-alt-1", "q-alt-2"]
-
-    def test_raises_when_fewer_than_expected(self, monkeypatch):
-        class _BadLLM:
-            def invoke(self, _):
-                from langchain_core.messages import AIMessage
-                return AIMessage(content=json.dumps({"queries": ["only-one"]}))
-
-        monkeypatch.setattr(
-            "app.services.utils.ChatOpenAI", lambda *a, **kw: _BadLLM()
-        )
-        with pytest.raises(ValueError, match="Expansion returned"):
-            expand_queries("anything")
-
-    def test_truncates_if_more_than_expected(self, monkeypatch):
-        class _BigLLM:
-            def invoke(self, _):
-                from langchain_core.messages import AIMessage
-                return AIMessage(
-                    content=json.dumps({"queries": ["a", "b", "c", "d"]})
-                )
-
-        monkeypatch.setattr(
-            "app.services.utils.ChatOpenAI", lambda *a, **kw: _BigLLM()
-        )
-        assert expand_queries("x") == ["a", "b"]  # N_EXPANDED=2
-
-
-# ---------- RRF fusion ----------
+# ---------- Generic RRF fusion ----------
 
 class TestRrfFuse:
-    def _doc(self, text: str) -> Document:
-        return Document(page_content=text, metadata={})
-
     def test_duplicate_across_lists_is_fused(self):
-        a = self._doc("same")
-        b = self._doc("same")  # same page_content, dedup key
-        c = self._doc("other")
-        result = rrf_fuse([[a, c], [b]], k=60, top_n=10)
-        # Two unique entries after dedup.
+        # Generic: fuse lists of strings (key_fn = identity).
+        result = rrf_fuse(
+            [["same", "other"], ["same"]],
+            key_fn=lambda s: s,
+            k=60,
+            top_n=10,
+        )
         assert len(result) == 2
-        # "same" appears in both lists → higher fused score than "other".
         top_scores = [s for s, _ in result]
         assert top_scores[0] > top_scores[1]
-        assert result[0][1].page_content == "same"
+        assert result[0][1] == "same"
 
     def test_empty_input(self):
-        assert rrf_fuse([], k=60, top_n=5) == []
+        assert rrf_fuse([], key_fn=lambda x: x, k=60, top_n=5) == []
 
     def test_top_n_limits_output(self):
-        docs = [self._doc(f"d{i}") for i in range(5)]
-        result = rrf_fuse([docs], k=60, top_n=3)
+        items = [f"d{i}" for i in range(5)]
+        result = rrf_fuse([items], key_fn=lambda s: s, k=60, top_n=3)
         assert len(result) == 3
 
     def test_score_matches_formula(self):
-        d = self._doc("x")
-        result = rrf_fuse([[d]], k=60, top_n=1)
+        result = rrf_fuse([["x"]], key_fn=lambda s: s, k=60, top_n=1)
         assert result[0][0] == pytest.approx(1.0 / (60 + 1))
 
 
-# ---------- Reranker ----------
+# ---------- Generic reranker HTTP call ----------
 
-class TestRerank:
-    def _doc(self, text: str) -> Document:
-        return Document(page_content=text, metadata={})
-
-    def test_empty_docs_short_circuit(self, monkeypatch):
+class TestRerankTexts:
+    def test_empty_texts_short_circuit(self, monkeypatch):
         calls = []
         monkeypatch.setattr(
             "app.services.utils.httpx.post",
             lambda *a, **kw: calls.append(1),
         )
-        assert rerank("q", [], top_n=3) == []
+        assert rerank_texts("q", [], top_n=3) == []
         assert calls == []
 
     def test_sorts_by_score_and_limits_top_n(self, mock_reranker):
-        docs = [self._doc(f"d{i}") for i in range(5)]
+        texts = [f"d{i}" for i in range(5)]
         # mock_reranker assigns score 1/(i+1): d0>d1>d2>d3>d4
-        result = rerank("q", docs, top_n=3)
+        result = rerank_texts("q", texts, top_n=3)
         assert len(result) == 3
-        assert [d.page_content for d, _ in result] == ["d0", "d1", "d2"]
+        assert [i for i, _ in result] == [0, 1, 2]
         assert [s for _, s in result] == [1.0, 0.5, pytest.approx(1 / 3)]
 
     def test_request_shape(self, mock_reranker):
-        docs = [self._doc("hello")]
-        rerank("pregunta", docs, top_n=1)
+        from app.config import RERANKER_MODEL
+        rerank_texts("pregunta", ["hello"], top_n=1)
         assert len(mock_reranker) == 1
         call = mock_reranker[0]
         assert call["url"].endswith("/rerank")
         assert call["json"]["query"] == "pregunta"
         assert call["json"]["documents"] == ["hello"]
-        assert call["json"]["model"] == utils.RERANKER_MODEL
+        assert call["json"]["model"] == RERANKER_MODEL
