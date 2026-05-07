@@ -1,0 +1,358 @@
+{
+  "hero.div.1": {
+    "es": "Tutorial · Troubleshooting · FAQ",
+    "en": "Tutorial · Troubleshooting · FAQ"
+  },
+  "hero.span.1": {
+    "es": "Troubleshooting y FAQ de un RAG",
+    "en": "RAG troubleshooting &amp; FAQ"
+  },
+  "hero.body.p.1": {
+    "es": "Catálogo práctico para cuando algo no funciona: pitfalls clásicos, preguntas frecuentes, y un mapa de síntomas → causas posibles que vas a poder usar como checklist cuando un RAG en producción se porta raro.",
+    "en": "Practical catalog for when something stops working: classic pitfalls, frequently asked questions, and a symptom-to-likely-cause map you can use as a checklist when a production RAG starts behaving oddly."
+  },
+  "hero.meta.1": {
+    "es": "\n<span>Nivel: intermedio</span>\n<span>Lectura: ~15 min</span>\n<span>Referencia: úsalo como checklist</span>\n",
+    "en": "\n<span>Level: intermediate</span>\n<span>Reading: ~15 min</span>\n<span>Use it as a checklist</span>\n"
+  },
+  "toc.nav.1": {
+    "es": "\n<h2>Contenido</h2>\n<ol>\n<li><a href=\"#pitfalls\">Pitfalls clásicos</a></li>\n<li><a href=\"#faq\">Preguntas frecuentes</a></li>\n<li><a href=\"#symptoms\">Síntomas → causas posibles</a></li>\n<li><a href=\"#triage\">Triage: ¿retrieval, generation u orquestación?</a></li>\n<li><a href=\"#cierre\">Volver al hub</a></li>\n</ol>\n",
+    "en": "\n<h2>Contents</h2>\n<ol>\n<li><a href=\"#pitfalls\">Classic pitfalls</a></li>\n<li><a href=\"#faq\">Frequently asked questions</a></li>\n<li><a href=\"#symptoms\">Symptoms → likely causes</a></li>\n<li><a href=\"#triage\">Triage: retrieval, generation, or orchestration?</a></li>\n<li><a href=\"#cierre\">Back to the hub</a></li>\n</ol>\n"
+  },
+  "intro.body.p.1": {
+    "es": "Este archivo es un compañero de <a href=\"rag.html\">rag.html</a>. La idea: cuando algo no anda, abrirlo, ir a la sección que matchea tu síntoma, y tener una lista de causas posibles para ir tachando una por una. No reemplaza el debugging real — pero te da un punto de partida y evita que pierdas tiempo investigando cosas en el orden equivocado.",
+    "en": "This file is a companion to <a href=\"rag.html\">rag.html</a>. The idea: when something breaks, open it, jump to the section that matches your symptom, and walk down a list of likely causes one by one. It doesn't replace real debugging — but it gives you a starting point and keeps you from investigating things in the wrong order."
+  },
+  "section.pitfalls.span.1": {
+    "es": "1. Pitfalls clásicos",
+    "en": "1. Classic pitfalls"
+  },
+  "section.pitfalls.body.p.1": {
+    "es": "Seis errores que se ven una y otra vez en los RAGs de producción. Si tu sistema falla, empezá descartando esto antes de mirar más profundo.",
+    "en": "Six mistakes you see over and over in production RAGs. If your system is failing, rule these out before you dig deeper."
+  },
+  "section.pitfalls.callout.1": {
+    "es": "<strong>Pitfall 1.</strong> <strong>Cambiar el modelo de embeddings sin reembeber.</strong> Los vectores nuevos viven en otro espacio que los viejos, las distancias dejan de tener sentido y la similitud devuelve basura. Regla: cambiar el modelo implica re-ingestar todo el corpus.",
+    "en": "<strong>Pitfall 1.</strong> <strong>Switching the embedding model without re-embedding.</strong> The new vectors live in a different space than the old ones, distances stop being meaningful, and similarity returns garbage. Rule: changing the model means re-ingesting the entire corpus."
+  },
+  "section.pitfalls.callout.2": {
+    "es": "<strong>Pitfall 2.</strong> <strong>Confundir similitud con relevancia.</strong> Dos textos pueden ser muy similares vectorialmente y no contestar la pregunta. El reranker existe precisamente para esto: el bi-encoder marca candidatos, el cross-encoder decide cuáles realmente responden.",
+    "en": "<strong>Pitfall 2.</strong> <strong>Mistaking similarity for relevance.</strong> Two texts can be vectorially close and still fail to answer the question. The reranker exists for this: the bi-encoder marks candidates, the cross-encoder decides which actually answer."
+  },
+  "section.pitfalls.callout.3": {
+    "es": "<strong>Pitfall 3.</strong> <strong>Asumir que \"más contexto es mejor\".</strong> Pasarle 20 chunks al LLM no garantiza mejor respuesta — sufre el efecto \"lost in the middle\" y se diluye. 3-5 chunks bien rankeados suele ser óptimo.",
+    "en": "<strong>Pitfall 3.</strong> <strong>Assuming \"more context is better\".</strong> Feeding the LLM 20 chunks doesn't guarantee a better answer — it suffers from \"lost in the middle\" and dilutes attention. 3-5 well-ranked chunks is usually the sweet spot."
+  },
+  "section.pitfalls.callout.4": {
+    "es": "<strong>Pitfall 4.</strong> <strong>No tener un \"no sé\".</strong> Si no instruís al modelo a decir \"no encontré información en el contexto\" cuando los chunks no responden, va a inventar. Una línea en el system prompt previene la mitad de las alucinaciones del producto.",
+    "en": "<strong>Pitfall 4.</strong> <strong>Having no \"I don't know\".</strong> If you don't tell the model to say \"I couldn't find this in the context\" when chunks don't answer, it will invent. One line in the system prompt prevents half the product's hallucinations."
+  },
+  "section.pitfalls.callout.5": {
+    "es": "<strong>Pitfall 5.</strong> <strong>Tokenizer no alineado al embedder.</strong> Si chunkeás contando tokens con un tokenizer A pero embedeás con un modelo B (otro tokenizer), un chunk que vos creés que mide 500 tokens puede medir 700 para B — y el embedder trunca silenciosamente el final del chunk.",
+    "en": "<strong>Pitfall 5.</strong> <strong>Tokenizer not aligned with the embedder.</strong> If you chunk by counting tokens with tokenizer A but embed with model B (a different tokenizer), a chunk you think measures 500 tokens can measure 700 to B — and the embedder silently truncates the tail."
+  },
+  "section.pitfalls.callout.6": {
+    "es": "<strong>Pitfall 6.</strong> <strong>IDs de chunk no deterministas.</strong> Si los IDs cambian cada vez que ingestás, no podés actualizar — sólo duplicar. Tu colección crece y crece. Hashea el contenido (o usa un esquema estable) para que la re-ingesta sea idempotente.",
+    "en": "<strong>Pitfall 6.</strong> <strong>Non-deterministic chunk IDs.</strong> If IDs change every time you ingest, you can't update — only duplicate. Your collection grows and grows. Hash the content (or use a stable scheme) so re-ingestion is idempotent."
+  },
+  "section.faq.span.1": {
+    "es": "2. Preguntas frecuentes",
+    "en": "2. Frequently asked questions"
+  },
+  "section.faq.body.p.1": {
+    "es": "Las preguntas que casi siempre aparecen cuando alguien empieza a construir o a operar un RAG. Respuestas cortas y opinionated; el detalle técnico vive en <a href=\"rag.html\">rag.html</a>.",
+    "en": "The questions that come up almost every time someone starts building or operating a RAG. Short and opinionated answers; the technical depth lives in <a href=\"rag.html\">rag.html</a>."
+  },
+  "section.faq.subheading.1": {
+    "es": "¿Cuál es la diferencia entre RAG y fine-tuning?",
+    "en": "What's the difference between RAG and fine-tuning?"
+  },
+  "section.faq.body.p.2": {
+    "es": "RAG <em>inyecta</em> conocimiento en el prompt en tiempo de query — el modelo no aprende nada, lo lee y lo olvida. Fine-tuning <em>cambia</em> los pesos del modelo, así que aprende estilo o dominio. RAG es la herramienta correcta para datos que cambian, hechos auditables, y conocimiento privado. Fine-tuning es para tono, formato o dominios técnicos especializados. La mayoría de los productos GenAI usan RAG; muy pocos necesitan fine-tuning.",
+    "en": "RAG <em>injects</em> knowledge into the prompt at query time — the model doesn't learn anything, it reads and forgets. Fine-tuning <em>changes</em> the model's weights, so it learns style or domain. RAG is the right tool for changing data, auditable facts, and private knowledge. Fine-tuning is for tone, formatting, or highly specialized technical domains. Most GenAI products use RAG; very few need fine-tuning."
+  },
+  "section.faq.subheading.2": {
+    "es": "¿Cuántos chunks tengo que recuperar?",
+    "en": "How many chunks should I retrieve?"
+  },
+  "section.faq.body.p.3": {
+    "es": "Patrón estándar: recuperar 20-30 candidatos del vector store, rerankear, y mandarle al LLM los 3-5 mejores. La fase de retrieve maximiza <em>recall</em> (que la respuesta esté en el conjunto), la de rerank maximiza <em>precision</em> (que llegue al prompt sólo lo bueno). Recuperar pocos te puede dejar sin la respuesta; recuperar muchos sin rerankear te diluye el contexto.",
+    "en": "Standard pattern: retrieve 20-30 candidates from the vector store, rerank, and send the LLM the top 3-5. Retrieve maximizes <em>recall</em> (the answer is in the set), rerank maximizes <em>precision</em> (only the good ones reach the prompt). Retrieving too few can miss the answer; retrieving many without reranking dilutes context."
+  },
+  "section.faq.subheading.3": {
+    "es": "¿Necesito hybrid search?",
+    "en": "Do I need hybrid search?"
+  },
+  "section.faq.body.p.4": {
+    "es": "Si tus queries dependen de <strong>terminología exacta</strong> — códigos, nombres de productos, identificadores, números — sí. La búsqueda vectorial es buena con paráfrasis pero pésima con strings literales. Hybrid (vector + BM25 keyword) cubre los dos casos. Si tus queries son siempre conversacionales, el vector solo alcanza.",
+    "en": "If your queries depend on <strong>exact terminology</strong> — product codes, names, IDs, numbers — yes. Vector search is great at paraphrasing but terrible with literal strings. Hybrid (vector + BM25 keyword) covers both cases. If your queries are always conversational, vector alone is fine."
+  },
+  "section.faq.subheading.4": {
+    "es": "¿Qué modelo de embeddings uso?",
+    "en": "Which embedding model should I use?"
+  },
+  "section.faq.body.p.5": {
+    "es": "Para arrancar: <code>text-embedding-3-small</code> de OpenAI (barato, multilenguaje, decente). Si necesitás open source: <code>BGE-M3</code> o <code>gte-multilingual-base</code>. Lo importante: el modelo tiene que matchear tu idioma y tu tipo de documentos. Y una vez elegido, no lo cambies sin re-embedir todo (ver Pitfall 1).",
+    "en": "To start: OpenAI's <code>text-embedding-3-small</code> (cheap, multilingual, decent). If you need open source: <code>BGE-M3</code> or <code>gte-multilingual-base</code>. The key thing: the model has to match your language and your document type. And once chosen, don't switch it without re-embedding everything (see Pitfall 1)."
+  },
+  "section.faq.subheading.5": {
+    "es": "¿Cómo decido el tamaño de chunk?",
+    "en": "How do I decide chunk size?"
+  },
+  "section.faq.body.p.6": {
+    "es": "Default razonable: 500 tokens con 100 de overlap. Más chico (200-300) → mejor precisión, peor contexto. Más grande (800-1000) → más contexto por chunk, menos selectivo. Si tus documentos son prosa larga, sweet spot ~500. Si son listas o tablas estructuradas, considerá chunks más chicos. Iterá: si el reranker descarta consistentemente lo recuperado, probablemente los chunks son demasiado grandes.",
+    "en": "Reasonable default: 500 tokens with 100 of overlap. Smaller (200-300) → better precision, less context. Larger (800-1000) → more context per chunk, less selective. If your documents are long prose, sweet spot is ~500. If they're lists or structured tables, consider smaller chunks. Iterate: if the reranker consistently discards what was retrieved, your chunks are probably too large."
+  },
+  "section.faq.subheading.6": {
+    "es": "¿Vale la pena un reranker?",
+    "en": "Is a reranker worth it?"
+  },
+  "section.faq.body.p.7": {
+    "es": "Casi siempre sí. Agrega 50-200ms de latencia, pero a cambio reduce los tokens que mandás al LLM (más barato, más rápido en generación) y mejora la precisión en órdenes de magnitud. La excepción: si tu pipeline es ultra-latency-sensitive (chat real-time, &lt;500ms total) y los retrieves ya son buenos, podés skipearlo.",
+    "en": "Almost always yes. Adds 50-200ms of latency, but in return cuts the tokens you send to the LLM (cheaper, faster generation) and improves precision by orders of magnitude. Exception: if your pipeline is ultra-latency-sensitive (real-time chat, &lt;500ms total) and retrieves are already good, you can skip it."
+  },
+  "section.faq.subheading.7": {
+    "es": "¿Cómo evalúo si mi RAG funciona?",
+    "en": "How do I know if my RAG is working?"
+  },
+  "section.faq.body.p.8": {
+    "es": "Construite un <strong>golden set</strong>: 30-100 pares (pregunta, respuesta esperada, chunks relevantes). Medí: <em>recall@k</em> en el retriever (¿el chunk correcto está en los k recuperados?), <em>faithfulness</em> en el generador (¿la respuesta solo usa info del contexto?), <em>answer relevance</em> (¿la respuesta cubre la pregunta?). Sin golden set, los cambios son a ciegas.",
+    "en": "Build a <strong>golden set</strong>: 30-100 (question, expected answer, relevant chunks) tuples. Measure: <em>recall@k</em> on the retriever (is the right chunk in the top-k?), <em>faithfulness</em> on the generator (does the answer only use context info?), <em>answer relevance</em> (does the answer cover the question?). Without a golden set, every change is blind."
+  },
+  "section.faq.subheading.8": {
+    "es": "¿Cómo manejo updates de los documentos?",
+    "en": "How do I handle document updates?"
+  },
+  "section.faq.body.p.9": {
+    "es": "Tres niveles: (1) <strong>append-only</strong>: ingestás documentos nuevos sin tocar los viejos. Funciona para corpus que crecen, no para corpus que cambian. (2) <strong>upsert con IDs deterministas</strong>: re-ingestás y los chunks con el mismo hash sobrescriben los viejos. Funciona si el chunking es estable. (3) <strong>full reindex</strong>: borrás la colección y reingestás todo. Único safe si cambiaste embedder, chunker o tokenizer.",
+    "en": "Three levels: (1) <strong>append-only</strong>: ingest new documents without touching old ones. Works for growing corpora, not for changing ones. (2) <strong>upsert with deterministic IDs</strong>: re-ingest and chunks with the same hash overwrite the old ones. Works if chunking is stable. (3) <strong>full reindex</strong>: drop the collection and re-ingest everything. The only safe path if you changed embedder, chunker, or tokenizer."
+  },
+  "section.faq.subheading.9": {
+    "es": "¿Cómo prevengo prompt injection?",
+    "en": "How do I prevent prompt injection?"
+  },
+  "section.faq.body.p.10": {
+    "es": "No hay solución dura, sólo mitigaciones. Tres capas: (a) separación estructural — la pregunta del usuario va en su propio <code>HumanMessage</code>, nunca concatenada al system. (b) delimitadores con nonce aleatorio por request — <code>&lt;question_a8f3&gt;...&lt;/question_a8f3&gt;</code> para que un atacante no pueda cerrar el bloque. (c) sanitización — strip control chars, cap de longitud. Y crucial: si el LLM ignora el system, no hay nonce que valga.",
+    "en": "There's no hard solution, only mitigations. Three layers: (a) structural separation — the user's question lives in its own <code>HumanMessage</code>, never concatenated into the system. (b) random per-request nonce delimiters — <code>&lt;question_a8f3&gt;...&lt;/question_a8f3&gt;</code> so an attacker can't close the block. (c) sanitization — strip control chars, cap length. And crucially: if the LLM ignores the system, no nonce will save you."
+  },
+  "section.symptoms.span.1": {
+    "es": "3. Síntomas → causas posibles",
+    "en": "3. Symptoms → likely causes"
+  },
+  "section.symptoms.body.p.1": {
+    "es": "El RAG en producción no falla en abstracto: falla con un síntoma específico. Cada síntoma de abajo lista las causas más probables, agrupadas por capa (retrieval / generation / infra). Recorré la lista de la más a la menos probable; tachá lo que descartes.",
+    "en": "Production RAGs don't fail in the abstract: they fail with a specific symptom. Each symptom below lists the most likely causes, grouped by layer (retrieval / generation / infra). Walk down the list from most to least likely; cross out what you rule out."
+  },
+  "section.symptoms.subheading.1": {
+    "es": "Respuestas inconsistentes",
+    "en": "Inconsistent answers"
+  },
+  "section.symptoms.body.p.2": {
+    "es": "La misma pregunta devuelve respuestas distintas en intentos seguidos.",
+    "en": "The same question returns different answers across consecutive runs."
+  },
+  "section.symptoms.subsubheading.1": {
+    "es": "Generation",
+    "en": "Generation"
+  },
+  "section.symptoms.list.1": {
+    "es": "\n<li><strong>Temperatura alta</strong> → variabilidad por sampling. Empezá bajándola a 0 o 0.1.</li>\n<li><strong>System prompt no determinista</strong> → si el system contiene timestamp o random, el LLM ve un prompt diferente cada vez.</li>\n",
+    "en": "\n<li><strong>High temperature</strong> → sampling variance. Start by dropping it to 0 or 0.1.</li>\n<li><strong>Non-deterministic system prompt</strong> → if the system includes a timestamp or random value, the LLM sees a different prompt every time.</li>\n"
+  },
+  "section.symptoms.subsubheading.2": {
+    "es": "Retrieval",
+    "en": "Retrieval"
+  },
+  "section.symptoms.list.2": {
+    "es": "\n<li><strong>Top-k con casi-empates</strong> → si los chunks 4-5-6 tienen scores similares, el orden cambia con perturbaciones triviales (carga del servidor, índice ANN no determinista). Subí <code>top_k</code> y dejá que el reranker decida.</li>\n<li><strong>Index stale</strong> → otra ingesta corriendo en paralelo modificó la colección entre llamadas.</li>\n<li><strong>Vector DB con replicas inconsistentes</strong> → consulta a un nodo, otra a otro, distintos snapshots.</li>\n",
+    "en": "\n<li><strong>Top-k near-ties</strong> → if chunks 4-5-6 have similar scores, ordering shifts with trivial perturbations (server load, non-deterministic ANN index). Raise <code>top_k</code> and let the reranker decide.</li>\n<li><strong>Stale index</strong> → another ingest running in parallel modified the collection between calls.</li>\n<li><strong>Vector DB with inconsistent replicas</strong> → one query hits one node, another hits a different one, different snapshots.</li>\n"
+  },
+  "section.symptoms.subsubheading.3": {
+    "es": "Infra",
+    "en": "Infra"
+  },
+  "section.symptoms.list.3": {
+    "es": "\n<li><strong>Cache stale</strong> → un cache (de embedding, de retrieval, o de respuestas) devuelve resultados viejos. Limpialo y revisar TTLs.</li>\n<li><strong>Race conditions en ingest</strong> → varios writers escribiendo el mismo doc con IDs no deterministas → duplicados.</li>\n<li><strong>Retries con backoff distinto</strong> → un retry pega a un nodo distinto con menos carga y devuelve más rápido pero con menos contexto.</li>\n",
+    "en": "\n<li><strong>Stale cache</strong> → an embedding/retrieval/answer cache returns old results. Flush it and review TTLs.</li>\n<li><strong>Ingest race conditions</strong> → multiple writers writing the same doc with non-deterministic IDs → duplicates.</li>\n<li><strong>Retries with mismatched backoff</strong> → a retry hits a less-loaded node and returns faster but with less context.</li>\n"
+  },
+  "section.symptoms.subheading.2": {
+    "es": "Hallucinations",
+    "en": "Hallucinations"
+  },
+  "section.symptoms.body.p.3": {
+    "es": "El modelo inventa información que no está en el contexto, presentándola con seguridad.",
+    "en": "The model invents information that isn't in the context, delivering it with confidence."
+  },
+  "section.symptoms.subsubheading.4": {
+    "es": "Generation",
+    "en": "Generation"
+  },
+  "section.symptoms.list.4": {
+    "es": "\n<li><strong>Falta el \"no sé\"</strong> en el system prompt → el modelo prefiere inventar antes que admitir ignorancia (ver Pitfall 4).</li>\n<li><strong>Contexto truncado</strong> → tus chunks no caben enteros y el LLM \"rellena\" lo que falta.</li>\n<li><strong>Prompt injection</strong> → el contenido recuperado contiene instrucciones que sobreescriben el system. Aplicá las 3 capas (estructural / nonce / sanitización).</li>\n<li><strong>Temperatura demasiado alta</strong> → más creatividad ≠ más fidelidad.</li>\n",
+    "en": "\n<li><strong>Missing \"I don't know\"</strong> in the system prompt → the model prefers to invent rather than admit ignorance (see Pitfall 4).</li>\n<li><strong>Truncated context</strong> → your chunks don't fit whole and the LLM \"fills in\" the gaps.</li>\n<li><strong>Prompt injection</strong> → retrieved content contains instructions that override the system. Apply the 3 layers (structural / nonce / sanitization).</li>\n<li><strong>Temperature too high</strong> → more creativity ≠ more faithfulness.</li>\n"
+  },
+  "section.symptoms.subsubheading.5": {
+    "es": "Retrieval",
+    "en": "Retrieval"
+  },
+  "section.symptoms.list.5": {
+    "es": "\n<li><strong>Chunks irrelevantes pero cercanos</strong> → similitud ≠ relevancia. Si no estás rerankeando, agregá un cross-encoder (ver Pitfall 2).</li>\n<li><strong>Top-k muy bajo</strong> → la respuesta no fue recuperada. Subí <code>top_k</code>.</li>\n<li><strong>Metadata filter excluyendo de más</strong> → un filtro mal armado puede dejar afuera los chunks correctos. Revisá los logs del query con el <code>where</code> aplicado.</li>\n<li><strong>Chunking malo</strong> → la respuesta está partida entre dos chunks; ninguno por sí solo la contiene.</li>\n",
+    "en": "\n<li><strong>Irrelevant but close chunks</strong> → similarity ≠ relevance. If you're not reranking, add a cross-encoder (see Pitfall 2).</li>\n<li><strong>Top-k too low</strong> → the answer wasn't retrieved. Raise <code>top_k</code>.</li>\n<li><strong>Over-filtering metadata</strong> → a poorly written filter can exclude the right chunks. Inspect query logs with the applied <code>where</code>.</li>\n<li><strong>Bad chunking</strong> → the answer is split across two chunks; neither alone contains it.</li>\n"
+  },
+  "section.symptoms.subheading.3": {
+    "es": "Retrieval malo / documentos irrelevantes",
+    "en": "Bad retrieval / irrelevant documents"
+  },
+  "section.symptoms.body.p.4": {
+    "es": "Los chunks recuperados no tienen que ver con la pregunta — el reranker tampoco salva la situación.",
+    "en": "The retrieved chunks have nothing to do with the question — and the reranker doesn't save the day either."
+  },
+  "section.symptoms.subsubheading.6": {
+    "es": "Chunking",
+    "en": "Chunking"
+  },
+  "section.symptoms.list.6": {
+    "es": "\n<li><strong>Chunks demasiado grandes</strong> → cada vector es un \"promedio\" del contenido y no representa nada bien.</li>\n<li><strong>Chunks demasiado chicos</strong> → contexto insuficiente, los embeddings agarran ruido.</li>\n<li><strong>Sin overlap</strong> → conceptos al borde se pierden entre chunks.</li>\n<li><strong>Cortado por carácter</strong> → palabras partidas, chunks ilegibles → embeddings basura.</li>\n",
+    "en": "\n<li><strong>Chunks too large</strong> → each vector is an \"average\" of the content and represents nothing well.</li>\n<li><strong>Chunks too small</strong> → not enough context, embeddings pick up noise.</li>\n<li><strong>No overlap</strong> → concepts straddling boundaries are lost between chunks.</li>\n<li><strong>Cut by character</strong> → split words, unreadable chunks → garbage embeddings.</li>\n"
+  },
+  "section.symptoms.subsubheading.7": {
+    "es": "Embeddings",
+    "en": "Embeddings"
+  },
+  "section.symptoms.list.7": {
+    "es": "\n<li><strong>Modelo distinto al de la ingesta</strong> → ver Pitfall 1: vectores en espacios distintos = similitud sin sentido.</li>\n<li><strong>Modelo no apto para el idioma</strong> → un embedder solo en inglés contra documentos en español = retrieval pobre.</li>\n<li><strong>Modelo demasiado genérico</strong> → para dominios técnicos pesados (legal, médico, código), un modelo de propósito general puede no distinguir matices.</li>\n",
+    "en": "\n<li><strong>Different model than ingest</strong> → see Pitfall 1: vectors in different spaces = meaningless similarity.</li>\n<li><strong>Model not suited to the language</strong> → an English-only embedder against Spanish documents = poor retrieval.</li>\n<li><strong>Model too generic</strong> → for heavy technical domains (legal, medical, code), a general-purpose model may not capture nuance.</li>\n"
+  },
+  "section.symptoms.subsubheading.8": {
+    "es": "Pipeline",
+    "en": "Pipeline"
+  },
+  "section.symptoms.list.8": {
+    "es": "\n<li><strong>Top-k mal calibrado</strong> → muy bajo (recall pobre) o muy alto (saturás de ruido al reranker).</li>\n<li><strong>Falta hybrid search</strong> → para queries con códigos / nombres / IDs, vector solo no alcanza.</li>\n<li><strong>Reranker ausente o mal modelo</strong> → sin segundo pase, la similitud cruda es ruidosa.</li>\n<li><strong>Metadata filtering roto</strong> → filtros que no se aplican o que matchean cero.</li>\n<li><strong>Tokenizer mismatch</strong> → ver Pitfall 5: chunks truncados al embedder.</li>\n",
+    "en": "\n<li><strong>Miscalibrated top-k</strong> → too low (poor recall) or too high (you flood the reranker with noise).</li>\n<li><strong>Missing hybrid search</strong> → for queries with codes / names / IDs, vector alone doesn't cut it.</li>\n<li><strong>No reranker, or wrong model</strong> → without a second pass, raw similarity is noisy.</li>\n<li><strong>Broken metadata filtering</strong> → filters that don't apply or match nothing.</li>\n<li><strong>Tokenizer mismatch</strong> → see Pitfall 5: chunks truncated at the embedder.</li>\n"
+  },
+  "section.symptoms.subheading.4": {
+    "es": "Latencia alta",
+    "en": "High latency"
+  },
+  "section.symptoms.body.p.5": {
+    "es": "El pipeline tarda demasiado. Antes de optimizar a ciegas, mirá dónde se va el tiempo.",
+    "en": "The pipeline takes too long. Before optimizing blindly, see where the time goes."
+  },
+  "section.symptoms.subsubheading.9": {
+    "es": "Pipeline",
+    "en": "Pipeline"
+  },
+  "section.symptoms.list.9": {
+    "es": "\n<li><strong>Pasos secuenciales que podrían ser paralelos</strong> → si expandís a N queries, hacé los retrieves con <code>.batch()</code> / <code>asyncio.gather</code>, no en loop.</li>\n<li><strong>Cache miss en cada request</strong> → embeddings de queries comunes deberían estar cacheados.</li>\n<li><strong>Reranker en bottleneck</strong> → batch size 1, modelo grande, sin GPU. Probá un modelo más chico o ajustá el batch.</li>\n",
+    "en": "\n<li><strong>Sequential steps that could be parallel</strong> → if you expand to N queries, do the retrieves with <code>.batch()</code> / <code>asyncio.gather</code>, not in a loop.</li>\n<li><strong>Cache miss every request</strong> → embeddings of common queries should be cached.</li>\n<li><strong>Reranker bottlenecked</strong> → batch size 1, large model, no GPU. Try a smaller model or tune the batch.</li>\n"
+  },
+  "section.symptoms.subsubheading.10": {
+    "es": "Generation",
+    "en": "Generation"
+  },
+  "section.symptoms.list.10": {
+    "es": "\n<li><strong>Prompt demasiado largo</strong> → más tokens = más latencia y más costo. Reducí <code>top_n</code> al rerankear.</li>\n<li><strong>Modelo más grande de lo necesario</strong> → ¿realmente necesitás GPT-4-class para un FAQ chatbot? Probá modelos más livianos.</li>\n<li><strong>Streaming desactivado</strong> → si no streameás, el usuario espera la respuesta completa antes de ver nada. Activá streaming aunque sea para mejorar la latencia <em>percibida</em>.</li>\n",
+    "en": "\n<li><strong>Prompt too long</strong> → more tokens = more latency and cost. Reduce <code>top_n</code> when reranking.</li>\n<li><strong>Model larger than needed</strong> → do you really need GPT-4-class for a FAQ chatbot? Try lighter models.</li>\n<li><strong>Streaming off</strong> → if you don't stream, the user waits for the full answer before seeing anything. Turn it on to at least improve <em>perceived</em> latency.</li>\n"
+  },
+  "section.symptoms.subsubheading.11": {
+    "es": "Infra",
+    "en": "Infra"
+  },
+  "section.symptoms.list.11": {
+    "es": "\n<li><strong>Timeouts mal configurados</strong> → un timeout corto en el LLM corta la respuesta a la mitad y dispara retry. Total latency se duplica.</li>\n<li><strong>Retries en serie</strong> → cada retry agrega segundos. Verificá la política de retry de tu cliente.</li>\n<li><strong>Vector DB lenta</strong> → índice no optimizado (HNSW con M muy alto, IVF con nlist mal), o disco saturado.</li>\n",
+    "en": "\n<li><strong>Misconfigured timeouts</strong> → a tight LLM timeout cuts the answer mid-way and triggers a retry. Total latency doubles.</li>\n<li><strong>Serial retries</strong> → each retry adds seconds. Check your client's retry policy.</li>\n<li><strong>Slow vector DB</strong> → unoptimized index (HNSW with too-high M, badly tuned IVF nlist), or saturated disk.</li>\n"
+  },
+  "section.symptoms.subheading.5": {
+    "es": "Degradación reciente",
+    "en": "Recent degradation"
+  },
+  "section.symptoms.body.p.6": {
+    "es": "Funcionaba bien y de pronto empeoró sin que vos hicieras nada (o eso parece).",
+    "en": "It used to work and suddenly got worse without you changing anything (or so it seems)."
+  },
+  "section.symptoms.subsubheading.12": {
+    "es": "Cambios silenciosos del entorno",
+    "en": "Silent environment changes"
+  },
+  "section.symptoms.list.12": {
+    "es": "\n<li><strong>Modelo upstream cambió</strong> → OpenAI / Anthropic actualizaron un modelo bajo el mismo alias (<code>gpt-4o-2024-08-06</code> → <code>gpt-4o-latest</code>). Pinneá la versión exacta.</li>\n<li><strong>Embedding model deprecated</strong> → si dependías de uno legacy, puede haber sido reemplazado en el backend del proveedor.</li>\n<li><strong>Tokenizer drift</strong> → versión nueva de <code>tiktoken</code> con tokenización ligeramente distinta → chunks de tamaño distinto.</li>\n",
+    "en": "\n<li><strong>Upstream model changed</strong> → OpenAI / Anthropic shifted a model under the same alias (<code>gpt-4o-2024-08-06</code> → <code>gpt-4o-latest</code>). Pin the exact version.</li>\n<li><strong>Embedding model deprecated</strong> → if you were on a legacy one, it may have been replaced on the provider side.</li>\n<li><strong>Tokenizer drift</strong> → a new <code>tiktoken</code> release tokenizes slightly differently → different chunk sizes.</li>\n"
+  },
+  "section.symptoms.subsubheading.13": {
+    "es": "Datos",
+    "en": "Data"
+  },
+  "section.symptoms.list.13": {
+    "es": "\n<li><strong>Index stale</strong> → contenido nuevo no fue ingestado.</li>\n<li><strong>Index inflado</strong> → re-ingestaste con IDs no deterministas y duplicaste todo (ver Pitfall 6). Más vectores = más ruido.</li>\n<li><strong>Cambio en el contenido fuente</strong> → la fuente cambió de formato y el loader lo parsea peor.</li>\n",
+    "en": "\n<li><strong>Stale index</strong> → new content wasn't ingested.</li>\n<li><strong>Bloated index</strong> → you re-ingested with non-deterministic IDs and duplicated everything (see Pitfall 6). More vectors = more noise.</li>\n<li><strong>Source content changed format</strong> → the source switched format and the loader now parses it worse.</li>\n"
+  },
+  "section.symptoms.subsubheading.14": {
+    "es": "Infra",
+    "en": "Infra"
+  },
+  "section.symptoms.list.14": {
+    "es": "\n<li><strong>Vector DB migrated / reset</strong> → un deploy reseteó la colección, o cambió de versión y el formato del índice.</li>\n<li><strong>Cache envenenado</strong> → un valor erróneo se cacheó y todas las queries similares lo reusan.</li>\n<li><strong>Cambios de configuración invisibles</strong> → alguien tocó <code>top_k</code>, <code>chunk_size</code>, o el system prompt en un PR sin review.</li>\n",
+    "en": "\n<li><strong>Vector DB migrated / reset</strong> → a deploy wiped the collection, or upgraded its version and index format.</li>\n<li><strong>Poisoned cache</strong> → a wrong value got cached and similar queries keep reusing it.</li>\n<li><strong>Invisible config changes</strong> → someone tweaked <code>top_k</code>, <code>chunk_size</code>, or the system prompt in a PR without review.</li>\n"
+  },
+  "section.triage.span.1": {
+    "es": "4. Triage: ¿retrieval, generation u orquestación?",
+    "en": "4. Triage: retrieval, generation, or orchestration?"
+  },
+  "section.triage.body.p.1": {
+    "es": "Antes de tirar hipótesis, distinguí <strong>en qué capa</strong> está el problema. La diferencia entre \"el retriever no trae lo correcto\" y \"el LLM no usa lo que le doy\" cambia totalmente la lista de causas. Hay un truco simple para separarlas:",
+    "en": "Before brainstorming hypotheses, figure out <strong>which layer</strong> is broken. The difference between \"the retriever doesn't bring the right thing\" and \"the LLM ignores what I give it\" completely changes the candidate causes. There's a simple trick to separate them:"
+  },
+  "section.triage.table.1": {
+    "es": "\n<thead>\n<tr><th>Test</th><th>Resultado</th><th>Diagnóstico</th></tr>\n</thead>\n<tbody>\n<tr>\n<td>Mirá manualmente los chunks recuperados. ¿Contienen la respuesta?</td>\n<td>No</td>\n<td><strong>Retrieval problem.</strong> El retriever falló. Sección 3 → \"Retrieval malo\".</td>\n</tr>\n<tr>\n<td>Pasale al LLM los chunks correctos manualmente (bypassando el retriever). ¿Responde bien?</td>\n<td>No</td>\n<td><strong>Generation problem.</strong> El LLM no sabe usar el contexto, o el prompt está mal armado.</td>\n</tr>\n<tr>\n<td>El retriever trae lo correcto y el LLM responde bien aislado, pero juntos fallan.</td>\n<td>—</td>\n<td><strong>Orchestration problem.</strong> Cómo se conectan: cache stale, race conditions, retries, async/await mal usado, format mismatch entre el output del retriever y el input del prompt.</td>\n</tr>\n</tbody>\n",
+    "en": "\n<thead>\n<tr><th>Test</th><th>Result</th><th>Diagnosis</th></tr>\n</thead>\n<tbody>\n<tr>\n<td>Look manually at the retrieved chunks. Do they contain the answer?</td>\n<td>No</td>\n<td><strong>Retrieval problem.</strong> The retriever failed. Section 3 → \"Bad retrieval\".</td>\n</tr>\n<tr>\n<td>Manually feed the LLM the right chunks (bypassing the retriever). Does it answer well?</td>\n<td>No</td>\n<td><strong>Generation problem.</strong> The LLM doesn't know how to use the context, or the prompt is malformed.</td>\n</tr>\n<tr>\n<td>The retriever brings the right thing and the LLM responds well in isolation, but together they fail.</td>\n<td>—</td>\n<td><strong>Orchestration problem.</strong> How they connect: stale cache, race conditions, retries, mis-used async/await, format mismatch between retriever output and prompt input.</td>\n</tr>\n</tbody>\n"
+  },
+  "section.triage.strong.1": {
+    "es": "Atajo de bolsillo.",
+    "en": "Pocket shortcut."
+  },
+  "section.triage.span.2": {
+    "es": " Si la respuesta está mal pero los chunks correctos están en el contexto: <em>generation</em>. Si los chunks correctos no están: <em>retrieval</em>. Si todo individualmente funciona pero el flujo entero no: <em>orchestration</em>. En ese orden — siempre verificá retrieval primero, es la causa más común.",
+    "en": " If the answer is wrong but the right chunks are in the context: <em>generation</em>. If the right chunks aren't there: <em>retrieval</em>. If everything works individually but the whole flow doesn't: <em>orchestration</em>. In that order — always verify retrieval first, it's the most common cause."
+  },
+  "section.cierre.span.1": {
+    "es": "5. Volver al hub",
+    "en": "5. Back to the hub"
+  },
+  "section.cierre.body.p.1": {
+    "es": "Si llegaste hasta acá buscando una causa puntual y la encontraste, perfecto. Si querés profundizar la teoría detrás de cualquiera de estos pitfalls — <em>por qué</em> el chunking importa, <em>cómo</em> funciona RRF, <em>qué</em> hace exactamente un cross-encoder — todo eso vive en el tutorial principal:",
+    "en": "If you got here looking for a specific cause and found it, great. If you want to dig into the theory behind any of these pitfalls — <em>why</em> chunking matters, <em>how</em> RRF works, <em>what</em> a cross-encoder actually does — all of that lives in the main tutorial:"
+  },
+  "section.cierre.span.2": {
+    "es": "Hub conceptual",
+    "en": "Concept hub"
+  },
+  "section.cierre.span.3": {
+    "es": "Cómo funciona un RAG por dentro",
+    "en": "How a RAG actually works"
+  },
+  "section.cierre.span.4": {
+    "es": "Implementación",
+    "en": "Implementation"
+  },
+  "section.cierre.span.5": {
+    "es": "Engine LangChain",
+    "en": "LangChain engine"
+  },
+  "section.cierre.span.6": {
+    "es": "Implementación",
+    "en": "Implementation"
+  },
+  "section.cierre.span.7": {
+    "es": "Engine LlamaIndex",
+    "en": "LlamaIndex engine"
+  },
+  "breadcrumb.current": {
+    "es": "Troubleshooting y FAQ",
+    "en": "Troubleshooting & FAQ"
+  },
+  "breadcrumb.parent": {
+    "es": "Conceptos de RAG",
+    "en": "RAG concepts"
+  }
+}

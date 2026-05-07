@@ -1,0 +1,754 @@
+{
+  "hero.span.1": {
+    "es": "Aprender LlamaIndex leyendo un RAG real",
+    "en": "Learn LlamaIndex by reading a real RAG"
+  },
+  "hero.figcaption.1": {
+    "es": "Bienvenido. Vamos a leer un RAG juntos.",
+    "en": "Welcome. Let's read a RAG together."
+  },
+  "hero.span.2": {
+    "es": "Un recorrido guiado por <code>llamaindex_rag/service.py</code>, pensado para entender el framework a partir de un sistema productivo (no de un quickstart).",
+    "en": "A guided walk through <code>llamaindex_rag/service.py</code>, designed to teach the framework from a production-grade system rather than a quickstart."
+  },
+  "hero.meta.1": {
+    "es": "\n<span>Nivel: intermedio</span>\n<span>Tiempo de lectura: ~20 min</span>\n<span>Stack: Python · LlamaIndex · ChromaDB · OpenAI</span>\n",
+    "en": "\n<span>Level: intermediate</span>\n<span>Reading time: ~20 min</span>\n<span>Stack: Python · LlamaIndex · ChromaDB · OpenAI</span>\n"
+  },
+  "toc.nav.1": {
+    "es": "\n<h2>Contenido</h2>\n<ol>\n<li><a href=\"#conceptos\">Conceptos básicos de LlamaIndex</a></li>\n<li><a href=\"#mapa\">El mapa mental aplicado al código</a></li>\n<li><a href=\"#wiring\">La capa de <em>wiring</em></a></li>\n<li><a href=\"#tokenizer\">Tokenizer alineado al embedder</a></li>\n<li><a href=\"#retriever\">Retriever custom sobre Chroma</a></li>\n<li><a href=\"#queryengine\">El <code>CustomQueryEngine</code></a></li>\n<li><a href=\"#service\">El servicio <code>LlamaindexSrv</code></a></li>\n<li><a href=\"#decisiones\">Decisiones \"grises\" — resumen</a></li>\n<li><a href=\"#cierre\">Para seguir aprendiendo</a></li>\n</ol>\n",
+    "en": "\n<h2>Contents</h2>\n<ol>\n<li><a href=\"#conceptos\">LlamaIndex core concepts</a></li>\n<li><a href=\"#mapa\">The mental map, applied to the code</a></li>\n<li><a href=\"#wiring\">The <em>wiring</em> layer</a></li>\n<li><a href=\"#tokenizer\">Tokenizer aligned with the embedder</a></li>\n<li><a href=\"#retriever\">A custom retriever over Chroma</a></li>\n<li><a href=\"#queryengine\">The <code>CustomQueryEngine</code></a></li>\n<li><a href=\"#service\">The <code>LlamaindexSrv</code> service</a></li>\n<li><a href=\"#decisiones\">\"Gray\" decisions — recap</a></li>\n<li><a href=\"#cierre\">Where to go next</a></li>\n</ol>\n"
+  },
+  "intro.body.p.1": {
+    "es": "La mayoría de los tutoriales de LlamaIndex te muestran <code>VectorStoreIndex.from_documents(...)</code> y un <code>index.as_query_engine().query(\"...\")</code>. Quedan lindos en cinco líneas, pero no te preparan para las decisiones que aparecen cuando armás un RAG real: filtros que el framework no expone, pipelines con varios pasos, separación entre ingest y retrieve, testabilidad.",
+    "en": "Most LlamaIndex tutorials hand you <code>VectorStoreIndex.from_documents(...)</code> followed by <code>index.as_query_engine().query(\"...\")</code>. Five tidy lines — and exactly the wrong preparation for the decisions you actually face when building a real RAG: filters the framework doesn't expose, multi-step pipelines, separating ingest from retrieve, testability."
+  },
+  "intro.body.p.2": {
+    "es": "Este tutorial usa el camino opuesto. Vamos a leer un servicio RAG ya construido (<code>backend/app/services/llamaindex_rag/service.py</code>) y, paso a paso, vamos a ver <strong>qué pieza de LlamaIndex usa, por qué, y dónde decidió salirse de la ruta directa</strong>. Al terminar deberías poder construir uno parecido sin pelearte con el framework.",
+    "en": "This tutorial takes the opposite route. We'll read a RAG service that's already built (<code>backend/app/services/llamaindex_rag/service.py</code>) and, step by step, examine <strong>which LlamaIndex piece it uses, why, and where it deliberately leaves the beaten path</strong>. By the end you should be able to build something similar without fighting the framework."
+  },
+  "intro.figcaption.1": {
+    "es": "La llama mira el PDF y se pregunta: ¿por dónde lo corto?",
+    "en": "The llama eyes the PDF and wonders: where do I cut this?"
+  },
+  "section.conceptos.span.1": {
+    "es": "1. Conceptos básicos de LlamaIndex",
+    "en": "1. LlamaIndex core concepts"
+  },
+  "section.conceptos.body.p.1": {
+    "es": "Antes de entrar al código, necesitás tener internalizadas unas pocas piezas y cómo se enganchan entre sí. LlamaIndex es, esencialmente, un framework para conectar <strong>tus datos</strong> con un <strong>LLM</strong>, y todas sus abstracciones existen para alguno de los pasos de ese viaje. Si tenés esto claro, el resto del tutorial fluye solo.",
+    "en": "Before we touch the code, you need a handful of pieces internalized — and a sense of how they snap together. LlamaIndex is, at heart, a framework for connecting <strong>your data</strong> to an <strong>LLM</strong>, and every abstraction it ships exists to serve one step of that journey. Once that's clear, the rest of the tutorial flows by itself."
+  },
+  "section.conceptos.subheading.1": {
+    "es": "1.1 La cadena conceptual",
+    "en": "1.1 The conceptual chain"
+  },
+  "section.conceptos.body.p.2": {
+    "es": "El \"viaje\" canónico que el framework modela es siempre el mismo:",
+    "en": "The canonical \"journey\" the framework models is always the same:"
+  },
+  "section.conceptos.figure_src.1": {
+    "es": "imgs/llama_cadena_conceptual.png",
+    "en": "imgs/llama_cadena_conceptual_eng.png"
+  },
+  "section.conceptos.figcaption.1": {
+    "es": "La cadena conceptual completa de LlamaIndex.",
+    "en": "The full LlamaIndex conceptual chain."
+  },
+  "section.conceptos.cta.1.label": {
+    "es": "Ampliar imagen",
+    "en": "Zoom in"
+  },
+  "section.conceptos.cta.1.src": {
+    "es": "imgs/llama_cadena_conceptual.png",
+    "en": "imgs/llama_cadena_conceptual_eng.png"
+  },
+  "section.conceptos.body.p.3": {
+    "es": "Cada pieza es una abstracción con una interfaz base que podés extender. Esto es importante: <strong>todo en LlamaIndex es reemplazable mientras respetes el contrato</strong>. Vas a ver eso aplicado más adelante con el retriever custom.",
+    "en": "Each piece is an abstraction with a base interface you can extend. This matters: <strong>everything in LlamaIndex is swappable as long as you honor the contract</strong>. You'll see that principle in action later, with the custom retriever."
+  },
+  "section.conceptos.subheading.2": {
+    "es": "1.2 <code>Document</code> y <code>Node</code> — las unidades de contenido",
+    "en": "1.2 <code>Document</code> and <code>Node</code> — the units of content"
+  },
+  "section.conceptos.list.1": {
+    "es": "\n<li><strong><code>Document</code></strong>: una unidad \"grande\" de contenido tal como la trae un loader. Por ejemplo, una página de un PDF, un archivo Markdown completo, una fila de una tabla. Tiene <code>text</code> y <code>metadata</code> (un dict libre).</li>\n<li><strong><code>Node</code></strong> (típicamente <code>TextNode</code>): la unidad \"chica\" lista para indexar. Es el resultado de chunkear un <code>Document</code>. Hereda metadata del documento padre, tiene su propio <code>id_</code> y mantiene relaciones (<code>prev</code>, <code>next</code>, <code>parent</code>) para reconstruir contexto.</li>\n",
+    "en": "\n<li><strong><code>Document</code></strong>: a \"coarse\" unit of content as it arrives from a loader — a PDF page, a full Markdown file, a row of a table. It carries a <code>text</code> field and a free-form <code>metadata</code> dict.</li>\n<li><strong><code>Node</code></strong> (typically <code>TextNode</code>): the \"fine\" unit, ready for indexing. It's the result of chunking a <code>Document</code>. It inherits metadata from its parent, owns its <code>id_</code>, and tracks relationships (<code>prev</code>, <code>next</code>, <code>parent</code>) so you can reconstruct context later.</li>\n"
+  },
+  "section.conceptos.body.p.4": {
+    "es": "Los <strong>embeddings se calculan sobre nodos, no sobre documentos</strong>. Esa es la regla mental.",
+    "en": "<strong>Embeddings are computed over nodes, not documents.</strong> Tattoo that on your mental model."
+  },
+  "section.conceptos.svg_text.1": {
+    "es": "overlap entre vecinos",
+    "en": "overlap between neighbors"
+  },
+  "section.conceptos.figcaption.2": {
+    "es": "Un <code>Document</code> se rompe en <code>Node</code>s con un overlap pequeño entre vecinos. Los embeddings se calculan sobre cada carita.",
+    "en": "A <code>Document</code> is split into <code>Node</code>s with a small overlap between neighbors. Embeddings are computed for each little face."
+  },
+  "section.conceptos.subheading.3": {
+    "es": "1.3 Loaders y Node Parsers",
+    "en": "1.3 Loaders and Node Parsers"
+  },
+  "section.conceptos.list.2": {
+    "es": "\n<li><strong>Loader / Reader</strong> (<code>PDFReader</code>, <code>SimpleDirectoryReader</code>, etc.): convierte una fuente externa (archivo, URL, base de datos) en una lista de <code>Document</code>.</li>\n<li><strong>Node Parser / Splitter</strong> (<code>SentenceSplitter</code>, <code>TokenTextSplitter</code>, <code>SemanticSplitter</code>): convierte <code>Document</code>s en <code>Node</code>s. Es el \"chunker\". Cada uno tiene una estrategia distinta: por oraciones, por tokens fijos, por similitud semántica.</li>\n",
+    "en": "\n<li><strong>Loader / Reader</strong> (<code>PDFReader</code>, <code>SimpleDirectoryReader</code>, etc.): turns an external source — a file, a URL, a database — into a list of <code>Document</code>s.</li>\n<li><strong>Node Parser / Splitter</strong> (<code>SentenceSplitter</code>, <code>TokenTextSplitter</code>, <code>SemanticSplitter</code>): turns <code>Document</code>s into <code>Node</code>s. It's the \"chunker\". Each one carries a different strategy: by sentence, by fixed token count, by semantic similarity.</li>\n"
+  },
+  "section.conceptos.subheading.4": {
+    "es": "1.4 Embeddings y Vector Stores",
+    "en": "1.4 Embeddings and Vector Stores"
+  },
+  "section.conceptos.list.3": {
+    "es": "\n<li><strong><code>BaseEmbedding</code></strong>: el modelo que convierte texto a vectores. Implementaciones: <code>OpenAIEmbedding</code>, <code>HuggingFaceEmbedding</code>, etc. Tiene dos métodos clave: <code>get_text_embedding</code> (para indexar) y <code>get_query_embedding</code> (para preguntas). Importante usar el mismo modelo en los dos lados.</li>\n<li><strong><code>VectorStore</code></strong>: la capa de persistencia de vectores. <code>ChromaVectorStore</code>, <code>QdrantVectorStore</code>, <code>PineconeVectorStore</code>, etc. Cada una envuelve el cliente nativo de su backend. La envoltura te da una API homogénea, pero <strong>te puede ocultar capacidades específicas del backend</strong> — esto va a ser importante después.</li>\n",
+    "en": "\n<li><strong><code>BaseEmbedding</code></strong>: the model that turns text into vectors. Implementations include <code>OpenAIEmbedding</code>, <code>HuggingFaceEmbedding</code>, and others. Two methods matter: <code>get_text_embedding</code> (for indexing) and <code>get_query_embedding</code> (for questions). Crucially, the same model has to power both sides.</li>\n<li><strong><code>VectorStore</code></strong>: the vector persistence layer — <code>ChromaVectorStore</code>, <code>QdrantVectorStore</code>, <code>PineconeVectorStore</code>, and so on. Each wraps its backend's native client. The wrapper gives you a uniform API, but <strong>it can hide backend-specific capabilities</strong> — and that detail will bite us later.</li>\n"
+  },
+  "section.conceptos.subheading.5": {
+    "es": "1.5 <code>Index</code> — el corazón conceptual",
+    "en": "1.5 <code>Index</code> — the conceptual heart"
+  },
+  "section.conceptos.body.p.5": {
+    "es": "Un <code>Index</code> en LlamaIndex es una <strong>estructura de datos sobre tus nodos</strong> diseñada para hacer queries eficientes. Hay varios tipos según cómo organicen los nodos:",
+    "en": "An <code>Index</code> in LlamaIndex is a <strong>data structure over your nodes</strong>, designed for efficient queries. Several flavors exist, depending on how they organize the nodes:"
+  },
+  "section.conceptos.table.1": {
+    "es": "\n<thead>\n<tr><th>Tipo de Index</th><th>Cómo organiza los nodos</th><th>Cuándo se usa</th></tr>\n</thead>\n<tbody>\n<tr><td><code>VectorStoreIndex</code></td><td>Por similitud vectorial</td><td>El default para RAG. Es el que vas a ver en este tutorial.</td></tr>\n<tr><td><code>SummaryIndex</code></td><td>Lista secuencial; recorre todo</td><td>Para resúmenes sobre un corpus chico.</td></tr>\n<tr><td><code>TreeIndex</code></td><td>Jerarquía de resúmenes</td><td>Navegación top-down sobre documentos largos.</td></tr>\n<tr><td><code>KeywordTableIndex</code></td><td>Por keywords extraídas</td><td>Búsqueda léxica.</td></tr>\n<tr><td><code>KnowledgeGraphIndex</code></td><td>Triplas sujeto-relación-objeto</td><td>Razonamiento sobre relaciones.</td></tr>\n</tbody>\n",
+    "en": "\n<thead>\n<tr><th>Index type</th><th>How it organizes nodes</th><th>When to use it</th></tr>\n</thead>\n<tbody>\n<tr><td><code>VectorStoreIndex</code></td><td>By vector similarity</td><td>The default for RAG. The one we'll work with in this tutorial.</td></tr>\n<tr><td><code>SummaryIndex</code></td><td>Sequential list; walks everything</td><td>Summaries over a small corpus.</td></tr>\n<tr><td><code>TreeIndex</code></td><td>Hierarchy of summaries</td><td>Top-down navigation across long documents.</td></tr>\n<tr><td><code>KeywordTableIndex</code></td><td>By extracted keywords</td><td>Lexical search.</td></tr>\n<tr><td><code>KnowledgeGraphIndex</code></td><td>Subject-relation-object triples</td><td>Reasoning over relationships.</td></tr>\n</tbody>\n"
+  },
+  "section.conceptos.body.p.6": {
+    "es": "El <code>VectorStoreIndex</code> es básicamente \"un envoltorio sobre un <code>VectorStore</code>\" que sabe embeddear nodos al insertarlos y construir el retriever apropiado al consultarlos.",
+    "en": "The <code>VectorStoreIndex</code> is basically \"a wrapper around a <code>VectorStore</code>\" that knows how to embed nodes on insert and how to build the right retriever on query."
+  },
+  "section.conceptos.body.p.7": {
+    "es": "Para el 95% de los casos de RAG vas a usar <code>VectorStoreIndex</code>. Los demás existen para cuando aparezca el caso real (resumir corpus chico, navegar jerárquicamente, búsqueda por keyword exacta, razonar sobre relaciones); úsalos como referencia, no como menú a explorar de entrada.",
+    "en": "For 95% of RAG use cases you'll use <code>VectorStoreIndex</code>. The others exist for when the real case shows up (summarizing a small corpus, hierarchical navigation, exact-keyword search, reasoning over relationships); treat them as reference material, not as a menu to explore upfront."
+  },
+  "section.conceptos.callout.1": {
+    "es": "\n<strong>Detalle clave.</strong> El <code>Index</code> no es lo mismo que el <code>VectorStore</code>. El vector store es donde viven los vectores; el index es la lógica de \"cómo meter cosas y cómo sacarlas\". Podés tener el mismo vector store y construir múltiples índices sobre él.\n",
+    "en": "\n<strong>Key distinction.</strong> The <code>Index</code> is not the same thing as the <code>VectorStore</code>. The vector store is where the vectors live; the index is the logic of \"how do I put things in and pull things out?\". One vector store can back several indices.\n"
+  },
+  "section.conceptos.subsubheading.1": {
+    "es": "¿Cómo funciona el <code>VectorStoreIndex</code> con y sin una vector DB?",
+    "en": "How does <code>VectorStoreIndex</code> behave with — and without — a vector DB?"
+  },
+  "section.conceptos.body.p.8": {
+    "es": "El <code>VectorStoreIndex</code> tiene <strong>dos modos de operar</strong> según qué <code>VectorStore</code> le pases por debajo. Esto es una de las cosas que más confunde al principio porque LlamaIndex hace que parezcan iguales:",
+    "en": "<code>VectorStoreIndex</code> has <strong>two operating modes</strong> depending on the <code>VectorStore</code> you hand it underneath. This trips up beginners because LlamaIndex makes them look identical at the API surface:"
+  },
+  "section.conceptos.table.2": {
+    "es": "\n<thead>\n<tr><th>Modo</th><th>Vector store usado</th><th>Qué pasa internamente</th></tr>\n</thead>\n<tbody>\n<tr>\n<td><strong>Sin vector DB</strong> (default)</td>\n<td><code>SimpleVectorStore</code> — un dict en memoria</td>\n<td>Los vectores y los nodos viven en el proceso de Python. Se persisten serializando a JSON con <code>index.storage_context.persist(persist_dir=...)</code>. Bueno para demos, scripts, datasets chicos. <strong>Se pierde si reiniciás el proceso</strong> y no llamaste a <code>persist</code>.</td>\n</tr>\n<tr>\n<td><strong>Con vector DB</strong></td>\n<td><code>ChromaVectorStore</code>, <code>QdrantVectorStore</code>, <code>PineconeVectorStore</code>, etc.</td>\n<td>El index <strong>solo orquesta</strong>: cuando insertás nodos, llama al embedder y delega el \"guardar el vector + metadata\" al backend. Cuando consultás, embebe la query y delega \"buscame los k más cercanos\" al backend. La búsqueda ANN, los filtros, la persistencia y la escala son responsabilidad del backend.</td>\n</tr>\n</tbody>\n",
+    "en": "\n<thead>\n<tr><th>Mode</th><th>Vector store used</th><th>What happens under the hood</th></tr>\n</thead>\n<tbody>\n<tr>\n<td><strong>Without a vector DB</strong> (default)</td>\n<td><code>SimpleVectorStore</code> — an in-memory dict</td>\n<td>Vectors and nodes live in the Python process. You persist them by serializing to JSON with <code>index.storage_context.persist(persist_dir=...)</code>. Fine for demos, scripts, small datasets. <strong>You lose everything on restart</strong> if you forgot to call <code>persist</code>.</td>\n</tr>\n<tr>\n<td><strong>With a vector DB</strong></td>\n<td><code>ChromaVectorStore</code>, <code>QdrantVectorStore</code>, <code>PineconeVectorStore</code>, etc.</td>\n<td>The index is <strong>only an orchestrator</strong>: on insert it embeds and hands \"save vector + metadata\" to the backend; on query it embeds the question and hands \"find me the k nearest\" to the backend. ANN search, filters, persistence, scale — all on the backend.</td>\n</tr>\n</tbody>\n"
+  },
+  "section.conceptos.body.p.9": {
+    "es": "La diferencia mental importante: <strong>cuando hay una vector DB, el index pasa a ser una capa muy delgada</strong>. Casi no hace cómputo: traduce entre los tipos de LlamaIndex (<code>TextNode</code>, <code>NodeWithScore</code>) y los tipos del backend (los dicts crudos de Chroma, etc.). Por eso, en este código, <code>VectorStoreIndex.from_vector_store(...)</code> arranca instantáneamente: no carga datos en memoria, solo abre la conexión.",
+    "en": "The mental shift to make: <strong>once a vector DB is in play, the index becomes a very thin layer</strong>. It barely computes anything — it just translates between LlamaIndex types (<code>TextNode</code>, <code>NodeWithScore</code>) and the backend's native types (raw Chroma dicts, etc.). That's why, in this codebase, <code>VectorStoreIndex.from_vector_store(...)</code> returns instantly: no data is loaded into memory, only a connection is opened."
+  },
+  "section.conceptos.body.p.10": {
+    "es": "Y por eso también es viable saltarse al backend nativo cuando una abstracción no alcanza, como hace <code>ChromaFilterRetriever</code> en este código (lo vas a ver en la sección 5).",
+    "en": "And it's why dropping down to the native backend is a viable escape hatch when an abstraction falls short — exactly what <code>ChromaFilterRetriever</code> does here (you'll see it in section 5)."
+  },
+  "section.conceptos.subheading.6": {
+    "es": "1.6 <code>Retriever</code> — quien hace la búsqueda",
+    "en": "1.6 <code>Retriever</code> — the search worker"
+  },
+  "section.conceptos.body.p.11": {
+    "es": "Un <code>Retriever</code> recibe una query (envuelta en un <code>QueryBundle</code>) y devuelve una lista de <code>NodeWithScore</code>. Su única responsabilidad es <strong>seleccionar nodos relevantes</strong>, no generar respuestas.",
+    "en": "A <code>Retriever</code> takes a query (wrapped in a <code>QueryBundle</code>) and returns a list of <code>NodeWithScore</code>. Its single job is to <strong>pick relevant nodes</strong>, not to generate answers."
+  },
+  "section.conceptos.body.p.12": {
+    "es": "Cada <code>Index</code> sabe construir su propio retriever (<code>index.as_retriever(...)</code>), pero la interfaz <code>BaseRetriever</code> es pública y podés implementar la tuya — exactamente lo que hace el código que vamos a leer.",
+    "en": "Every <code>Index</code> knows how to build its own retriever (<code>index.as_retriever(...)</code>), but the <code>BaseRetriever</code> interface is public — you can roll your own. Which is exactly what the code we're about to read does."
+  },
+  "section.conceptos.svg_text.2": {
+    "es": "resto del corpus",
+    "en": "rest of the corpus"
+  },
+  "section.conceptos.figcaption.3": {
+    "es": "El retriever embebe la query (punto rojo) y devuelve los <code>k</code> nodos más cercanos en el espacio vectorial.",
+    "en": "The retriever embeds the query (red dot) and returns the <code>k</code> nearest nodes in vector space."
+  },
+  "section.conceptos.subheading.7": {
+    "es": "1.7 <code>NodeWithScore</code> y <code>QueryBundle</code>",
+    "en": "1.7 <code>NodeWithScore</code> and <code>QueryBundle</code>"
+  },
+  "section.conceptos.list.4": {
+    "es": "\n<li><strong><code>NodeWithScore</code></strong>: un <code>Node</code> + un <code>score</code> (float, \"más alto = más relevante\"). Es la moneda que circula entre retriever, postprocessors y response synthesizer.</li>\n<li><strong><code>QueryBundle</code></strong>: la representación rica de una query. No es solo un string: tiene <code>query_str</code>, opcionalmente un embedding pre-calculado, y metadata. Permite que distintos componentes pasen información extra sin cambiar la interfaz.</li>\n",
+    "en": "\n<li><strong><code>NodeWithScore</code></strong>: a <code>Node</code> plus a <code>score</code> (a float; \"higher means more relevant\"). It's the currency that flows between the retriever, postprocessors, and response synthesizer.</li>\n<li><strong><code>QueryBundle</code></strong>: the rich representation of a query. Not just a string — it carries <code>query_str</code>, optionally a precomputed embedding, and metadata. It lets different components attach extra information without breaking the interface.</li>\n"
+  },
+  "section.conceptos.subheading.8": {
+    "es": "1.8 Postprocessors",
+    "en": "1.8 Postprocessors"
+  },
+  "section.conceptos.body.p.13": {
+    "es": "Un <code>BaseNodePostprocessor</code> recibe la lista de <code>NodeWithScore</code> después del retrieve y devuelve otra lista (filtrada, reordenada, recortada). Acá viven los <strong>rerankers</strong>, los filtros por similitud mínima, los deduplicadores, etc. Son opcionales pero muy comunes en pipelines serios.",
+    "en": "A <code>BaseNodePostprocessor</code> receives the post-retrieve list of <code>NodeWithScore</code> and returns another list — filtered, reordered, or trimmed. <strong>Rerankers</strong>, minimum-similarity filters, deduplicators all live here. Optional, but standard equipment in any serious pipeline."
+  },
+  "section.conceptos.subheading.9": {
+    "es": "1.9 <code>Response Synthesizer</code> y <code>QueryEngine</code>",
+    "en": "1.9 <code>Response Synthesizer</code> and <code>QueryEngine</code>"
+  },
+  "section.conceptos.list.5": {
+    "es": "\n<li><strong><code>Response Synthesizer</code></strong>: el componente que toma los nodos finales y los manda al LLM con un prompt para producir la respuesta. Tiene varias estrategias (<code>compact</code>, <code>tree_summarize</code>, <code>refine</code>) según cómo manejar contextos que no entran en una sola llamada.</li>\n<li><strong><code>QueryEngine</code></strong>: la <strong>composición de extremo a extremo</strong>. Junta retriever + postprocessors + response synthesizer y expone un método <code>query(str) → Response</code>. Es lo que devuelve <code>index.as_query_engine()</code>.</li>\n",
+    "en": "\n<li><strong><code>Response Synthesizer</code></strong>: the component that takes the final nodes and ships them to the LLM with a prompt to produce the answer. It carries several strategies (<code>compact</code>, <code>tree_summarize</code>, <code>refine</code>) for handling contexts that don't fit in a single call.</li>\n<li><strong><code>QueryEngine</code></strong>: the <strong>end-to-end composition</strong>. It glues retriever + postprocessors + response synthesizer together and exposes a single <code>query(str) → Response</code>. It's what <code>index.as_query_engine()</code> hands you back.</li>\n"
+  },
+  "section.conceptos.body.p.14": {
+    "es": "Cuando armás algo a mano (como vamos a ver), subclaseás <code>CustomQueryEngine</code> e implementás <code>custom_query(str) → str</code>. Ahí decidís vos cómo se orquesta todo por dentro.",
+    "en": "When you assemble it by hand (as we're about to see), you subclass <code>CustomQueryEngine</code> and implement <code>custom_query(str) → str</code>. That's where you take ownership of the orchestration."
+  },
+  "section.conceptos.body.p.15": {
+    "es": "<strong>Spoiler:</strong> este código no usa un Response Synthesizer. El <code>custom_query</code> arma el prompt y llama al LLM a mano — el componente queda fuera del pipeline a propósito. Veremos por qué en la sección 6.",
+    "en": "<strong>Spoiler:</strong> this code doesn't use a Response Synthesizer. <code>custom_query</code> builds the prompt and calls the LLM by hand — the component is intentionally left out of the pipeline. We'll see why in section 6."
+  },
+  "section.conceptos.subheading.10": {
+    "es": "1.10 <code>Settings</code> y los singletons globales",
+    "en": "1.10 <code>Settings</code> and the global singletons"
+  },
+  "section.conceptos.body.p.16": {
+    "es": "<code>Settings</code> es un objeto global donde se configuran piezas compartidas: <code>Settings.llm</code>, <code>Settings.embed_model</code>, <code>Settings.node_parser</code>, <code>Settings.callback_manager</code>. Cuando una pieza necesita un LLM o un embedder y no se lo pasás explícito, lo toma de <code>Settings</code>.",
+    "en": "<code>Settings</code> is a global object where shared pieces are configured: <code>Settings.llm</code>, <code>Settings.embed_model</code>, <code>Settings.node_parser</code>, <code>Settings.callback_manager</code>. When some component needs an LLM or an embedder and you don't pass one explicitly, it pulls from <code>Settings</code>."
+  },
+  "section.conceptos.body.p.17": {
+    "es": "Es muy cómodo (no tenés que pasar <code>llm=</code> en cada llamada) y muy peligroso (cambiarlo en un test puede tener efectos lejanos). En un servicio bien construido se configura una sola vez al arrancar.",
+    "en": "Very convenient (you don't have to thread <code>llm=</code> through every call) and very dangerous (mutating it in a test can ripple far across the codebase). A well-built service configures it exactly once at startup."
+  },
+  "section.conceptos.subheading.11": {
+    "es": "1.11 <code>StorageContext</code> — el \"donde vive todo\"",
+    "en": "1.11 <code>StorageContext</code> — the \"where everything lives\""
+  },
+  "section.conceptos.body.p.18": {
+    "es": "Un <code>StorageContext</code> agrupa los stores de persistencia: el <code>vector_store</code> (vectores), el <code>docstore</code> (texto y metadata de los nodos), el <code>index_store</code> (estructura del index). Cuando construís un <code>VectorStoreIndex</code> apuntando a un Chroma existente, lo hacés vía <code>StorageContext.from_defaults(vector_store=...)</code>.",
+    "en": "A <code>StorageContext</code> bundles the persistence stores together: the <code>vector_store</code> (vectors), the <code>docstore</code> (node text and metadata), and the <code>index_store</code> (the index's own structure). When you build a <code>VectorStoreIndex</code> over an existing Chroma collection, you do it via <code>StorageContext.from_defaults(vector_store=...)</code>."
+  },
+  "section.conceptos.subheading.12": {
+    "es": "1.12 La diferencia entre \"construir desde cero\" y \"abrir lo existente\"",
+    "en": "1.12 The difference between \"build from scratch\" and \"open what already exists\""
+  },
+  "section.conceptos.body.p.19": {
+    "es": "Esta distinción confunde al principio y vale la pena anclarla:",
+    "en": "This distinction confuses people early on, and it's worth anchoring:"
+  },
+  "section.conceptos.table.3": {
+    "es": "\n<thead>\n<tr><th>Operación</th><th>Qué hace</th><th>Cuándo usarla</th></tr>\n</thead>\n<tbody>\n<tr>\n<td><code>VectorStoreIndex.from_documents(docs)</code></td>\n<td>Crea un índice nuevo, embeddea los documentos y los inserta</td>\n<td>Demos, scripts one-shot, primera carga</td>\n</tr>\n<tr>\n<td><code>VectorStoreIndex.from_vector_store(store)</code></td>\n<td>Abre un índice como vista sobre un vector store ya poblado; <strong>no embeddea nada</strong></td>\n<td>Producción: el ingest corre aparte y la app solo consulta</td>\n</tr>\n<tr>\n<td><code>index.insert_nodes(nodes)</code></td>\n<td>Embeddea esos nodos y los mete en el store del índice</td>\n<td>Cuando hacés el chunking vos y querés controlar IDs/metadata</td>\n</tr>\n</tbody>\n",
+    "en": "\n<thead>\n<tr><th>Operation</th><th>What it does</th><th>When to use it</th></tr>\n</thead>\n<tbody>\n<tr>\n<td><code>VectorStoreIndex.from_documents(docs)</code></td>\n<td>Creates a fresh index, embeds the documents, and inserts them</td>\n<td>Demos, one-shot scripts, the very first load</td>\n</tr>\n<tr>\n<td><code>VectorStoreIndex.from_vector_store(store)</code></td>\n<td>Opens an index as a view over an already-populated vector store; <strong>embeds nothing</strong></td>\n<td>Production: ingest runs separately and the app only queries</td>\n</tr>\n<tr>\n<td><code>index.insert_nodes(nodes)</code></td>\n<td>Embeds those nodes and writes them to the index's store</td>\n<td>When you handle chunking yourself and want control over IDs and metadata</td>\n</tr>\n</tbody>\n"
+  },
+  "section.conceptos.body.p.20": {
+    "es": "El servicio que vamos a leer usa <code>from_vector_store</code> para abrir, e <code>insert_nodes</code> para escribir. Nunca usa <code>from_documents</code>. Si entendés por qué, ya entendiste la mitad del archivo.",
+    "en": "The service we're about to read uses <code>from_vector_store</code> for opening and <code>insert_nodes</code> for writing. <code>from_documents</code> never appears. If you grasp why, you've already understood half the file."
+  },
+  "section.conceptos.callout.2": {
+    "es": "\n<strong>Recapitulando la cadena.</strong> Loader hace <code>Document</code>s. Node parser hace <code>Node</code>s. <code>Index</code> + <code>Embedding</code> los meten en un <code>VectorStore</code>. <code>Retriever</code> los saca como <code>NodeWithScore</code>. <code>Postprocessors</code> los reordenan. <code>Response Synthesizer</code> los manda al LLM. <code>QueryEngine</code> es el que pega todo. Si tenés esto claro, el resto del tutorial es ver dónde el código aplica cada concepto y dónde decide hacer algo distinto.\n",
+    "en": "\n<strong>The chain, in one breath.</strong> Loader produces <code>Document</code>s. Node parser produces <code>Node</code>s. <code>Index</code> + <code>Embedding</code> push them into a <code>VectorStore</code>. <code>Retriever</code> pulls them back as <code>NodeWithScore</code>. <code>Postprocessors</code> reorder them. <code>Response Synthesizer</code> ships them to the LLM. <code>QueryEngine</code> stitches it all together. With that internalized, the rest of the tutorial is just watching where the code applies each concept — and where it deliberately does something else.\n"
+  },
+  "section.conceptos.subheading.13": {
+    "es": "1.13 Dudas frecuentes que conviene aclarar",
+    "en": "1.13 Common questions worth clearing up"
+  },
+  "section.conceptos.body.p.21": {
+    "es": "Antes de pasar al código, despejemos las preguntas que aparecen una y otra vez en foros y discusiones del framework. Si vas a leer documentación, blogs o snippets ajenos, esto te va a ahorrar varias confusiones.",
+    "en": "Before we hit the code, let's clear up the questions that surface again and again in forums and discussions about the framework. If you'll be reading docs, blog posts, or other people's snippets, this will save you a few confusions."
+  },
+  "section.conceptos.subsubheading.2": {
+    "es": "¿En qué se diferencia LlamaIndex de LangChain?",
+    "en": "How is LlamaIndex different from LangChain?"
+  },
+  "section.conceptos.body.p.22": {
+    "es": "Las dos librerías tocan lo mismo (datos + LLMs) pero <strong>resuelven capas distintas</strong>:",
+    "en": "Both libraries touch the same problem (data + LLMs) but <strong>solve different layers</strong>:"
+  },
+  "section.conceptos.list.6": {
+    "es": "\n<li><strong>LlamaIndex es <em>data-first</em>:</strong> nace para resolver \"tengo un corpus, ¿cómo lo indexo y lo recupero bien para inyectarlo en un prompt?\". Es donde está más maduro: loaders, parsers, índices, retrievers, postprocessors, evaluación.</li>\n<li><strong>LangChain es <em>orchestration-first</em>:</strong> nace para componer cadenas de pasos (LCEL), agentes con herramientas, memoria conversacional, integraciones con APIs externas. El índice vectorial es solo un nodo más de la cadena.</li>\n",
+    "en": "\n<li><strong>LlamaIndex is <em>data-first</em>:</strong> it was born to answer \"I have a corpus — how do I index it and retrieve from it well, so I can stuff it into a prompt?\". That's where it shines: loaders, parsers, indices, retrievers, postprocessors, evaluation.</li>\n<li><strong>LangChain is <em>orchestration-first</em>:</strong> it was born to compose chains of steps (LCEL), agents with tools, conversational memory, integrations with external APIs. The vector index is just one more node in the chain.</li>\n"
+  },
+  "section.conceptos.body.p.23": {
+    "es": "No son competidores estrictos: en producción muchos los combinan (LlamaIndex para retrieve + LangChain para orquestar el agente que usa ese retrieve como tool). Este proyecto tiene una rama de cada uno justamente para comparar.",
+    "en": "They're not strict competitors. In production, many teams combine them: LlamaIndex for retrieval, LangChain for orchestrating the agent that wires that retrieval as a tool. This project has a branch of each, precisely so you can compare them side by side."
+  },
+  "section.conceptos.subsubheading.3": {
+    "es": "<code>Settings</code> vs <code>ServiceContext</code> — ¿cuál usar?",
+    "en": "<code>Settings</code> vs <code>ServiceContext</code> — which one?"
+  },
+  "section.conceptos.body.p.24": {
+    "es": "<strong>Solo <code>Settings</code></strong>. <code>ServiceContext</code> está deprecado desde LlamaIndex v0.10. Si encontrás tutoriales viejos que pasan <code>service_context=...</code> a <code>VectorStoreIndex</code>, ignorá esa parte: la nueva API es asignar una vez a <code>Settings.llm</code> / <code>Settings.embed_model</code> y listo. Las piezas que necesitan un LLM o un embedder lo toman lazy de <code>Settings</code> si no se lo pasás explícitamente. Migración concreta: reemplazá <code>service_context=sc</code> por nada — asignás <code>Settings.llm</code> y <code>Settings.embed_model</code> antes y los kwargs sobran.",
+    "en": "<strong>Just <code>Settings</code>.</strong> <code>ServiceContext</code> has been deprecated since LlamaIndex v0.10. If you stumble on old tutorials passing <code>service_context=...</code> to <code>VectorStoreIndex</code>, ignore that part: the new API is to assign once to <code>Settings.llm</code> / <code>Settings.embed_model</code> and move on. Pieces that need an LLM or an embedder pull lazily from <code>Settings</code> if you don't pass one explicitly. Concrete migration: replace <code>service_context=sc</code> with nothing — assign <code>Settings.llm</code> and <code>Settings.embed_model</code> beforehand and drop the kwargs."
+  },
+  "section.conceptos.subsubheading.4": {
+    "es": "¿Por qué hay tantos tipos de <code>Index</code> si yo solo necesito buscar texto?",
+    "en": "Why so many <code>Index</code> types if I just need to search text?"
+  },
+  "section.conceptos.body.p.25": {
+    "es": "Para 95% de los casos de RAG conviene <code>VectorStoreIndex</code>. Los otros (<code>SummaryIndex</code>, <code>TreeIndex</code>, <code>KeywordTableIndex</code>, <code>KnowledgeGraphIndex</code>) existen para casos donde el problema NO es \"encontrar el chunk parecido a la pregunta\" sino \"resumir todo\", \"navegar jerárquicamente\", \"buscar por keyword exacta\", o \"razonar sobre relaciones\". Si arrancás con RAG clásico y no sabés cuál usar, usá <code>VectorStoreIndex</code> y volvés cuando aparezca el caso de uso real.",
+    "en": "For 95% of RAG use cases, <code>VectorStoreIndex</code> is the right answer. The others (<code>SummaryIndex</code>, <code>TreeIndex</code>, <code>KeywordTableIndex</code>, <code>KnowledgeGraphIndex</code>) exist for problems where the goal is NOT \"find the chunk most similar to the question\" but rather \"summarize everything\", \"navigate hierarchically\", \"search by exact keyword\", or \"reason about relationships\". If you're starting with classical RAG and don't know which to pick, pick <code>VectorStoreIndex</code> — and revisit when a real use case shows up."
+  },
+  "section.conceptos.subsubheading.5": {
+    "es": "¿Top-k y similitud coseno: qué significan en la práctica?",
+    "en": "Top-k and cosine similarity — what do they mean in practice?"
+  },
+  "section.conceptos.body.p.26": {
+    "es": "<strong>Top-k</strong>: cuántos nodos te trae el retrieve. Más alto = más recall pero más ruido y más tokens en el prompt. En este código, <code>TOP_K_PER_QUERY=5</code> por retrieval y <code>TOP_K_FINAL=3</code> después del rerank.",
+    "en": "<strong>Top-k</strong>: how many nodes the retrieve hands back. Higher = better recall, but more noise and more tokens in the prompt. In this code, <code>TOP_K_PER_QUERY=5</code> per retrieval and <code>TOP_K_FINAL=3</code> after rerank."
+  },
+  "section.conceptos.body.p.27": {
+    "es": "<strong>Similitud coseno</strong>: la métrica que usa Chroma por default para decidir \"qué tan parecidos son dos vectores\". Va de 0 (ortogonales) a 1 (idénticos). Chroma devuelve <em>distancia</em> coseno (1 − similitud), por eso en el código ves <code>score = 1.0 - distance</code> para invertir el sentido.",
+    "en": "<strong>Cosine similarity</strong>: the metric Chroma uses by default to decide \"how similar are these two vectors?\". It ranges from 0 (orthogonal) to 1 (identical). Chroma returns cosine <em>distance</em> (1 − similarity), which is why the code does <code>score = 1.0 - distance</code> to flip the sense."
+  },
+  "section.mapa.span.1": {
+    "es": "2. El mapa mental aplicado al código",
+    "en": "2. The mental map, applied to the code"
+  },
+  "section.mapa.svg_text.1": {
+    "es": "entrypoint del servicio",
+    "en": "service entrypoint"
+  },
+  "section.mapa.svg_text.2": {
+    "es": "Punto de entrada. Detecta intención posicional, arma filtros Chroma y delega en <tspan fill=\"#1d1d1f\" font-family=\"monospace\">RagQueryEngine</tspan>.",
+    "en": "Entry point. Detects positional intent, builds Chroma filters, delegates to <tspan fill=\"#1d1d1f\" font-family=\"monospace\">RagQueryEngine</tspan>."
+  },
+  "section.mapa.svg_text.3": {
+    "es": "Parsea PDFs, chunkea por tokens, embebe e inserta en Chroma. Devuelve {nombre_pdf: n_páginas}.",
+    "en": "Parses PDFs, chunks by tokens, embeds and inserts into Chroma. Returns {pdf_name: n_pages}."
+  },
+  "section.mapa.svg_text.4": {
+    "es": "Hook del template: una sola pasada de retrieval. Existe para tests y para satisfacer la interfaz abstracta.",
+    "en": "Template hook: a single retrieval pass. Exists for tests and to satisfy the abstract interface."
+  },
+  "section.mapa.svg_text.5": {
+    "es": "Hook del template: arma prompt con anti-injection + memoria, llama al LLM, persiste el turno.",
+    "en": "Template hook: builds the anti-injection + memory prompt, calls the LLM, persists the turn."
+  },
+  "section.mapa.svg_text.6": {
+    "es": "Factory: instancia un <tspan fill=\"#1d1d1f\" font-family=\"monospace\">RagQueryEngine</tspan> con LLM, reranker y los filtros del request.",
+    "en": "Factory: builds a <tspan fill=\"#1d1d1f\" font-family=\"monospace\">RagQueryEngine</tspan> with LLM, reranker, and the request's filters."
+  },
+  "section.mapa.svg_text.7": {
+    "es": "pipeline RAG completo",
+    "en": "full RAG pipeline"
+  },
+  "section.mapa.svg_text.8": {
+    "es": "Ejecuta los 5 pasos: expand → retrieve × N → fuse RRF → rerank → generate.",
+    "en": "Runs the 5 steps: expand → retrieve × N → fuse RRF → rerank → generate."
+  },
+  "section.mapa.svg_text.9": {
+    "es": "Inyecta historial del <tspan fill=\"#1d1d1f\" font-family=\"monospace\">ChatMemoryBuffer</tspan> al prompt y persiste el turno tras una respuesta exitosa.",
+    "en": "Injects <tspan fill=\"#1d1d1f\" font-family=\"monospace\">ChatMemoryBuffer</tspan> history into the prompt and persists the turn on a successful response."
+  },
+  "section.mapa.svg_text.10": {
+    "es": "Campos pydantic: llm, reranker, retriever_factory_where, retriever_factory_where_document, engine_name",
+    "en": "Pydantic fields: llm, reranker, retriever_factory_where, retriever_factory_where_document, engine_name"
+  },
+  "section.mapa.svg_text.11": {
+    "es": "retriever con filtros nativos de Chroma",
+    "en": "retriever with native Chroma filters"
+  },
+  "section.mapa.svg_text.12": {
+    "es": "Configura cuántos hits devolver y los filtros de Chroma a aplicar (incluye el dialecto $contains).",
+    "en": "Configures how many hits to return and which Chroma filters to apply (including the $contains dialect)."
+  },
+  "section.mapa.svg_text.13": {
+    "es": "Heredado de <tspan fill=\"#1d1d1f\" font-family=\"monospace\">BaseRetriever</tspan>. Llama internamente a:",
+    "en": "Inherited from <tspan fill=\"#1d1d1f\" font-family=\"monospace\">BaseRetriever</tspan>. Internally it calls:"
+  },
+  "section.mapa.svg_text.14": {
+    "es": "Embebe la query, llama directo al cliente nativo de Chroma, convierte distance → score (1 − d).",
+    "en": "Embeds the query, calls Chroma's native client directly, converts distance → score (1 − d)."
+  },
+  "section.mapa.figcaption.1": {
+    "es": "Cheat-sheet de las 3 clases del <code>service.py</code>: cada método público con qué hace, listo para mirar de un vistazo.",
+    "en": "Cheat-sheet for the 3 classes in <code>service.py</code>: each public method with what it does, at a glance."
+  },
+  "section.mapa.body.p.1": {
+    "es": "LlamaIndex se piensa como un conjunto de piezas componibles. Estas son las que aparecen en el archivo:",
+    "en": "LlamaIndex is designed as a set of composable pieces. These are the ones that show up in the file:"
+  },
+  "section.mapa.table.1": {
+    "es": "\n<thead>\n<tr><th>Pieza</th><th>Para qué sirve</th><th>Dónde aparece</th></tr>\n</thead>\n<tbody>\n<tr><td><code>Document</code> / <code>TextNode</code></td><td>Unidades de contenido (un PDF entero / un chunk)</td><td><code>_ingest</code>, retriever</td></tr>\n<tr><td><code>PDFReader</code></td><td>Loader: PDF → <code>Document</code> por página</td><td><code>_ingest</code></td></tr>\n<tr><td><code>SentenceSplitter</code></td><td>Chunker token-aware</td><td><code>_ingest</code></td></tr>\n<tr><td><code>VectorStoreIndex</code> + <code>ChromaVectorStore</code></td><td>Índice vectorial (vista sobre Chroma)</td><td><code>db_comm.py</code> y <code>_ingest</code></td></tr>\n<tr><td><code>BaseRetriever</code></td><td>Interfaz \"dame nodos para esta query\"</td><td><code>ChromaFilterRetriever</code></td></tr>\n<tr><td><code>BaseNodePostprocessor</code></td><td>Reordenar/filtrar nodos tras el retrieve</td><td><code>InfinityRerank</code></td></tr>\n<tr><td><code>CustomQueryEngine</code></td><td>El pipeline completo como objeto de primera clase</td><td><code>RagQueryEngine</code></td></tr>\n<tr><td><code>Settings</code></td><td>Singletons globales (LLM, embedder)</td><td><code>db_comm._configure_settings</code></td></tr>\n</tbody>\n",
+    "en": "\n<thead>\n<tr><th>Piece</th><th>Purpose</th><th>Where it shows up</th></tr>\n</thead>\n<tbody>\n<tr><td><code>Document</code> / <code>TextNode</code></td><td>Units of content (a whole PDF / a chunk)</td><td><code>_ingest</code>, retriever</td></tr>\n<tr><td><code>PDFReader</code></td><td>Loader: PDF → one <code>Document</code> per page</td><td><code>_ingest</code></td></tr>\n<tr><td><code>SentenceSplitter</code></td><td>Token-aware chunker</td><td><code>_ingest</code></td></tr>\n<tr><td><code>VectorStoreIndex</code> + <code>ChromaVectorStore</code></td><td>Vector index (a view over Chroma)</td><td><code>db_comm.py</code> and <code>_ingest</code></td></tr>\n<tr><td><code>BaseRetriever</code></td><td>The \"give me nodes for this query\" interface</td><td><code>ChromaFilterRetriever</code></td></tr>\n<tr><td><code>BaseNodePostprocessor</code></td><td>Reorder/filter nodes after retrieve</td><td><code>InfinityRerank</code></td></tr>\n<tr><td><code>CustomQueryEngine</code></td><td>The full pipeline as a first-class object</td><td><code>RagQueryEngine</code></td></tr>\n<tr><td><code>Settings</code></td><td>Global singletons (LLM, embedder)</td><td><code>db_comm._configure_settings</code></td></tr>\n</tbody>\n"
+  },
+  "section.mapa.body.p.2": {
+    "es": "El pipeline RAG que arma <code>RagQueryEngine.custom_query</code> es el canónico de cinco pasos:",
+    "en": "The RAG pipeline that <code>RagQueryEngine.custom_query</code> assembles is the canonical five-step shape:"
+  },
+  "section.mapa.figure_src.1": {
+    "es": "imgs/llama_rag_query_engine_canonical.png",
+    "en": "imgs/llama_rag_query_engine_canonical_eng.png"
+  },
+  "section.mapa.figcaption.2": {
+    "es": "El pipeline canónico de 5 pasos que implementa <code>RagQueryEngine.custom_query</code>.",
+    "en": "The canonical 5-step pipeline implemented by <code>RagQueryEngine.custom_query</code>."
+  },
+  "section.mapa.cta.1.label": {
+    "es": "Ampliar imagen",
+    "en": "Zoom in"
+  },
+  "section.mapa.cta.1.src": {
+    "es": "imgs/llama_rag_query_engine_canonical.png",
+    "en": "imgs/llama_rag_query_engine_canonical_eng.png"
+  },
+  "section.wiring.span.1": {
+    "es": "3. La capa de <em>wiring</em> (<code>db_comm.py</code>) — el preámbulo",
+    "en": "3. The <em>wiring</em> layer (<code>db_comm.py</code>) — the preamble"
+  },
+  "section.wiring.body.p.1": {
+    "es": "Antes de entrar a <code>service.py</code>, conviene ubicar lo que ya está construido en su módulo vecino. Acá viven los singletons:",
+    "en": "Before opening <code>service.py</code>, it pays to locate what's already in place in its neighbor module. The singletons live here:"
+  },
+  "section.wiring.code.1": {
+    "es": "<code><span class=\"tok-k\">import</span> chromadb\n<span class=\"tok-k\">from</span> llama_index.core <span class=\"tok-k\">import</span> StorageContext, VectorStoreIndex\n<span class=\"tok-k\">from</span> llama_index.embeddings.openai <span class=\"tok-k\">import</span> OpenAIEmbedding\n<span class=\"tok-k\">from</span> llama_index.vector_stores.chroma <span class=\"tok-k\">import</span> ChromaVectorStore\n\n<span class=\"tok-c\"># --- 1. Cliente y colección NATIVOS de Chroma ----------------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">_get_chroma_collection</span>():\n    <span class=\"tok-c\"># Devuelve la colección directa de la lib chromadb,</span>\n    <span class=\"tok-c\"># SIN pasar por LlamaIndex. Esto es lo que después</span>\n    <span class=\"tok-c\"># nos deja usar el dialecto $contains de Chroma.</span>\n    client = chromadb.<span class=\"tok-f\">HttpClient</span>(host=CHROMA_HOST, port=CHROMA_PORT)\n    <span class=\"tok-k\">return</span> client.<span class=\"tok-f\">get_or_create_collection</span>(\n        name=COLLECTION_NAME, metadata={<span class=\"tok-s\">\"hnsw:space\"</span>: <span class=\"tok-s\">\"cosine\"</span>}\n    )\n\n<span class=\"tok-c\"># --- 2. Embedder (singleton) ---------------------------------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">_get_embed_model</span>():\n    <span class=\"tok-c\"># El MISMO modelo se usa al ingestar y al consultar.</span>\n    <span class=\"tok-k\">return</span> <span class=\"tok-f\">OpenAIEmbedding</span>(model=EMBEDDING_MODEL)\n\n<span class=\"tok-c\"># --- 3. Adapter LlamaIndex sobre la colección Chroma ---------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">get_vector_store</span>():\n    <span class=\"tok-c\"># Envuelve la colección nativa con el tipo que LlamaIndex entiende.</span>\n    <span class=\"tok-k\">return</span> <span class=\"tok-f\">ChromaVectorStore</span>(chroma_collection=<span class=\"tok-f\">_get_chroma_collection</span>())\n\n<span class=\"tok-c\"># --- 4. StorageContext: agrupa los stores de persistencia ----------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">get_storage_context</span>():\n    <span class=\"tok-k\">return</span> StorageContext.<span class=\"tok-f\">from_defaults</span>(vector_store=<span class=\"tok-f\">get_vector_store</span>())\n\n<span class=\"tok-c\"># --- 5. El índice: VISTA delgada sobre el vector store -------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">get_index</span>() -&gt; VectorStoreIndex:\n    _configure_settings()\n    <span class=\"tok-c\"># `from_vector_store` NO carga datos: solo abre la conexión.</span>\n    <span class=\"tok-k\">return</span> VectorStoreIndex.<span class=\"tok-f\">from_vector_store</span>(\n        vector_store=<span class=\"tok-f\">get_vector_store</span>(),\n        storage_context=<span class=\"tok-f\">get_storage_context</span>(),\n        embed_model=<span class=\"tok-f\">_get_embed_model</span>(),\n    )\n</code>",
+    "en": "<code><span class=\"tok-k\">import</span> chromadb\n<span class=\"tok-k\">from</span> llama_index.core <span class=\"tok-k\">import</span> StorageContext, VectorStoreIndex\n<span class=\"tok-k\">from</span> llama_index.embeddings.openai <span class=\"tok-k\">import</span> OpenAIEmbedding\n<span class=\"tok-k\">from</span> llama_index.vector_stores.chroma <span class=\"tok-k\">import</span> ChromaVectorStore\n\n<span class=\"tok-c\"># --- 1. NATIVE Chroma client and collection ------------------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">_get_chroma_collection</span>():\n    <span class=\"tok-c\"># Returns the collection straight from the chromadb lib,</span>\n    <span class=\"tok-c\"># WITHOUT going through LlamaIndex. This is what later</span>\n    <span class=\"tok-c\"># lets us use Chroma's $contains dialect.</span>\n    client = chromadb.<span class=\"tok-f\">HttpClient</span>(host=CHROMA_HOST, port=CHROMA_PORT)\n    <span class=\"tok-k\">return</span> client.<span class=\"tok-f\">get_or_create_collection</span>(\n        name=COLLECTION_NAME, metadata={<span class=\"tok-s\">\"hnsw:space\"</span>: <span class=\"tok-s\">\"cosine\"</span>}\n    )\n\n<span class=\"tok-c\"># --- 2. Embedder (singleton) ---------------------------------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">_get_embed_model</span>():\n    <span class=\"tok-c\"># The SAME model is used for ingest and for query.</span>\n    <span class=\"tok-k\">return</span> <span class=\"tok-f\">OpenAIEmbedding</span>(model=EMBEDDING_MODEL)\n\n<span class=\"tok-c\"># --- 3. LlamaIndex adapter over the Chroma collection --------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">get_vector_store</span>():\n    <span class=\"tok-c\"># Wraps the native collection with the type LlamaIndex understands.</span>\n    <span class=\"tok-k\">return</span> <span class=\"tok-f\">ChromaVectorStore</span>(chroma_collection=<span class=\"tok-f\">_get_chroma_collection</span>())\n\n<span class=\"tok-c\"># --- 4. StorageContext: bundles the persistence stores -------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">get_storage_context</span>():\n    <span class=\"tok-k\">return</span> StorageContext.<span class=\"tok-f\">from_defaults</span>(vector_store=<span class=\"tok-f\">get_vector_store</span>())\n\n<span class=\"tok-c\"># --- 5. The index: a thin VIEW over the vector store ---------------</span>\n<span class=\"tok-k\">@lru_cache</span>(maxsize=1)\n<span class=\"tok-k\">def</span> <span class=\"tok-f\">get_index</span>() -&gt; VectorStoreIndex:\n    _configure_settings()\n    <span class=\"tok-c\"># `from_vector_store` does NOT load data: it just opens the connection.</span>\n    <span class=\"tok-k\">return</span> VectorStoreIndex.<span class=\"tok-f\">from_vector_store</span>(\n        vector_store=<span class=\"tok-f\">get_vector_store</span>(),\n        storage_context=<span class=\"tok-f\">get_storage_context</span>(),\n        embed_model=<span class=\"tok-f\">_get_embed_model</span>(),\n    )\n</code>"
+  },
+  "section.wiring.body.p.2": {
+    "es": "El módulo arma los singletons en cinco capas, cada una con una responsabilidad clara. Vale la pena recorrerlas en orden porque cada una depende de la anterior:",
+    "en": "The module assembles the singletons across five layers, each with a single responsibility. It's worth walking them in order, since each layer depends on the previous one:"
+  },
+  "section.wiring.list.1": {
+    "es": "\n<li><strong>(1) <code>_get_chroma_collection()</code></strong> abre el cliente HTTP de Chroma y obtiene la colección. Devuelve el objeto <strong>nativo de la librería <code>chromadb</code></strong>, sin envoltorios. Esto es lo que después le permite a <code>ChromaFilterRetriever</code> usar el dialecto <code>$contains</code> de Chroma (sección 5).</li>\n<li><strong>(2) <code>_get_embed_model()</code></strong> instancia el embedder de OpenAI. El <code>@lru_cache(maxsize=1)</code> garantiza que se instancia exactamente una vez y que el resto del módulo (incluido el retriever custom de la sección 5) reusa ese mismo objeto — así el modelo que embedee al ingestar es el mismo que embedee al consultar (si fueran distintos, los vectores no serían comparables).</li>\n<li><strong>(3) <code>get_vector_store()</code></strong> toma la colección nativa de (1) y la envuelve en <code>ChromaVectorStore</code>, que es el adapter que LlamaIndex sabe consumir. A partir de acá, el código está \"del lado LlamaIndex\".</li>\n<li><strong>(4) <code>get_storage_context()</code></strong> agrupa los stores de persistencia (vectores, docstore, index store) en un único objeto. Acá solo registra el vector store; los otros usan defaults en memoria.</li>\n<li><strong>(5) <code>get_index()</code></strong> construye el <code>VectorStoreIndex</code> con <code>.from_vector_store(...)</code>. Es <strong>la línea más importante del archivo</strong>: no embeddea ni carga nada en memoria, solo abre una vista lógica sobre lo que ya vive en Chroma. Por eso arrancar la app es instantáneo aunque la colección tenga miles de chunks.</li>\n",
+    "en": "\n<li><strong>(1) <code>_get_chroma_collection()</code></strong> opens the Chroma HTTP client and grabs the collection. It returns the <strong>native <code>chromadb</code> object</strong>, with no wrapper. That's what lets <code>ChromaFilterRetriever</code> reach Chroma's <code>$contains</code> dialect later (section 5).</li>\n<li><strong>(2) <code>_get_embed_model()</code></strong> instantiates the OpenAI embedder. The <code>@lru_cache(maxsize=1)</code> guarantees it's instantiated exactly once and that the rest of the module (including the custom retriever from section 5) reuses that same object — so the model that embeds at ingest is the same one that embeds at query time (if they differed, the vectors wouldn't be comparable).</li>\n<li><strong>(3) <code>get_vector_store()</code></strong> takes the native collection from (1) and wraps it in <code>ChromaVectorStore</code>, the adapter LlamaIndex knows how to consume. From here on the code is \"on the LlamaIndex side\".</li>\n<li><strong>(4) <code>get_storage_context()</code></strong> groups the persistence stores (vectors, docstore, index store) into a single object. Only the vector store is wired here; the others fall back to in-memory defaults.</li>\n<li><strong>(5) <code>get_index()</code></strong> builds the <code>VectorStoreIndex</code> with <code>.from_vector_store(...)</code>. This is <strong>the most important line in the file</strong>: it embeds nothing and loads nothing into memory — it just opens a logical view over what already lives in Chroma. That's why app startup is instantaneous even when the collection holds thousands of chunks.</li>\n"
+  },
+  "section.wiring.callout.1": {
+    "es": "\n<strong>Decisión gris.</strong> El quickstart de LlamaIndex usa <code>VectorStoreIndex.from_documents(docs)</code>, que mete los documentos y los embeddea en el momento. Acá el ingest está separado y el índice se construye <em>vacío</em> sobre la colección existente. Esto es lo que querés cuando el ingest corre como un job aparte y la app no tiene que re-procesar todo al arrancar.\n",
+    "en": "\n<strong>Gray decision.</strong> The LlamaIndex quickstart uses <code>VectorStoreIndex.from_documents(docs)</code>, which inserts and embeds documents on the spot. Here ingest is decoupled and the index is built <em>empty</em> over the existing collection. That's what you want when ingest runs as a separate job and the app shouldn't reprocess everything on startup.\n"
+  },
+  "section.wiring.body.p.3": {
+    "es": "El otro detalle del archivo es <code>Settings</code>:",
+    "en": "The other detail in this file is <code>Settings</code>:"
+  },
+  "section.wiring.body.p.4": {
+    "es": "<code>Settings</code> es un singleton global de LlamaIndex. Si no le pasás <code>llm=</code> o <code>embed_model=</code> a una pieza, los toma de acá. Por eso configurarlo una vez al construir el índice ahorra repetir argumentos en cada llamada.",
+    "en": "<code>Settings</code> is LlamaIndex's global singleton. If you don't hand <code>llm=</code> or <code>embed_model=</code> to a component, it pulls from here. Configuring it once at index-build time saves you from threading those arguments through every call."
+  },
+  "section.wiring.body.p.5": {
+    "es": "Detalle a notar: <code>embed_model</code> se asigna sólo si todavía no estaba (idempotente, por eso el <code>if</code>); <code>llm</code> se asigna siempre, sin condición. La razón es que <code>Settings.llm</code> es un proxy lazy por default, así que reasignarlo no cuesta — y mantener la rama corta es más limpio que duplicar el chequeo.",
+    "en": "A detail to note: <code>embed_model</code> is assigned only if not already set (idempotent — hence the <code>if</code>); <code>llm</code> is assigned every time, unconditionally. The reason is that <code>Settings.llm</code> is a lazy proxy by default, so reassigning it costs nothing — and keeping that branch short is cleaner than duplicating the check."
+  },
+  "section.tokenizer.span.1": {
+    "es": "4. Tokenizer alineado al embedder",
+    "en": "4. Tokenizer aligned with the embedder"
+  },
+  "section.tokenizer.body.p.1": {
+    "es": "Primer detalle de <code>service.py</code> que vale la pena entender:",
+    "en": "The first detail in <code>service.py</code> worth understanding:"
+  },
+  "section.tokenizer.body.p.2": {
+    "es": "El <code>SentenceSplitter</code> corta por <strong>tokens</strong>, no por caracteres. Si no le pasás un <code>tokenizer</code>, usa el default de GPT-2, que <strong>cuenta distinto</strong> que el del modelo de embeddings.",
+    "en": "<code>SentenceSplitter</code> cuts by <strong>tokens</strong>, not characters. If you don't pass a <code>tokenizer</code>, it falls back to the GPT-2 default — which <strong>counts differently</strong> from your embedding model's tokenizer."
+  },
+  "section.tokenizer.body.p.3": {
+    "es": "Pasarle el tokenizer del modelo de embedding asegura que <code>chunk_size=500</code> realmente sean ~500 tokens del lado del embedder, evitando truncados sutiles. Es una decisión \"fina\" pero importante para reproducibilidad y para no quedar cerca del límite del modelo sin querer.",
+    "en": "Passing the embedding model's tokenizer ensures that <code>chunk_size=500</code> really means ~500 tokens on the embedder's side, which prevents subtle truncations. It's a fine-grained decision but it matters for reproducibility — and for not bumping into the model's context limit by accident."
+  },
+  "section.tokenizer.callout.1": {
+    "es": "\n<strong>Aclaración importante.</strong> Esto <strong>no genera ni un solo request</strong> a la API de OpenAI. <code>tiktoken</code> es la librería oficial de OpenAI para tokenización y trae los archivos de vocabulario / merges <em>embebidos en el paquete pip</em> para todos los modelos conocidos (GPT-3.5, GPT-4, las familias <code>text-embedding-*</code>, etc.). Cuando llamás a <code>tiktoken.encoding_for_model(\"text-embedding-3-small\")</code>, levanta los datos desde disco y arma un encoder local — todo el chunking corre offline. La única vez que sale a la red es la primera vez que pedís un encoder cuyo vocabulario no esté ya en el cache local de la librería, y eso solo lo descarga (no envía nada).\n",
+    "en": "\n<strong>Important clarification.</strong> This <strong>does not generate a single request</strong> to OpenAI's API. <code>tiktoken</code> is OpenAI's official tokenization library, and it ships vocabulary / merge files <em>bundled inside the pip package</em> for every known model (GPT-3.5, GPT-4, the <code>text-embedding-*</code> families, etc.). When you call <code>tiktoken.encoding_for_model(\"text-embedding-3-small\")</code>, it reads those assets from disk and builds a local encoder — all chunking runs offline. The only time it touches the network is the very first time you request an encoder whose vocabulary isn't already in the library's local cache, and even then it only downloads (it sends nothing).\n"
+  },
+  "section.tokenizer.body.p.4": {
+    "es": "<strong>¿Por qué <code>encoding_for_model(...)</code> y no <code>get_encoding(\"cl100k_base\")</code> directo?</strong> Hoy resuelven al mismo encoder (<code>cl100k_base</code> es la familia que usan <code>text-embedding-3-small</code>, <code>text-embedding-3-large</code> y los GPT-4 clásicos), pero pasarle el <em>nombre del modelo</em> es más auto-documentado y robusto: si OpenAI cambia el encoder de la familia <code>text-embedding-3-*</code> en el futuro, <code>encoding_for_model</code> sigue agarrando el correcto sin que toques este código.",
+    "en": "<strong>Why <code>encoding_for_model(...)</code> instead of <code>get_encoding(\"cl100k_base\")</code> directly?</strong> Today they resolve to the same encoder (<code>cl100k_base</code> is the family used by <code>text-embedding-3-small</code>, <code>text-embedding-3-large</code>, and the classic GPT-4 models), but passing the <em>model name</em> is more self-documenting and more robust: if OpenAI ever swaps the encoder for the <code>text-embedding-3-*</code> family, <code>encoding_for_model</code> keeps picking the right one without you touching this code."
+  },
+  "section.retriever.span.1": {
+    "es": "5. <code>ChromaFilterRetriever</code> — por qué un retriever custom",
+    "en": "5. <code>ChromaFilterRetriever</code> — why a custom retriever"
+  },
+  "section.retriever.body.p.1": {
+    "es": "Las cuatro constantes que vas a ver a lo largo de los capítulos de retrieve y reranking viven en <code>app/config.py</code>. Conviene tenerlas a mano:",
+    "en": "The four constants you'll see throughout the retrieve and reranking chapters live in <code>app/config.py</code>. Worth having them handy:"
+  },
+  "section.retriever.body.p.2": {
+    "es": "Esta es <strong>la decisión más gris del archivo</strong> y la más educativa. Vamos despacio.",
+    "en": "This is <strong>the grayest decision in the file</strong>, and the most instructive. We'll take it slowly."
+  },
+  "section.retriever.subheading.1": {
+    "es": "El camino directo (a esto le llamamos el \"path stock\")",
+    "en": "The straight road (we'll call this the \"stock path\")"
+  },
+  "section.retriever.body.p.3": {
+    "es": "Si abrís cualquier tutorial de LlamaIndex, el retriever se hace así (al \"path por defecto del framework\" lo vamos a llamar de acá en adelante el <strong>path stock</strong>):",
+    "en": "In any LlamaIndex tutorial, the retriever is built like this (we'll call \"the framework's default path\" the <strong>stock path</strong> from here on):"
+  },
+  "section.retriever.body.p.4": {
+    "es": "Funciona perfecto para filtros tipo <code>field == value</code>.",
+    "en": "It works perfectly for <code>field == value</code> filters."
+  },
+  "section.retriever.subheading.2": {
+    "es": "Por qué no alcanza acá",
+    "en": "Why that's not enough here"
+  },
+  "section.retriever.body.p.5": {
+    "es": "El sistema necesita filtros tipo <code>$contains</code> sobre el texto del documento (la búsqueda \"capítulo N\" usa <code>where_document={\"$contains\": \"...\"}</code>, una capacidad nativa de Chroma). LlamaIndex <strong>no expone ese dialecto</strong> a través de <code>MetadataFilters</code> — solo cubre los operadores comunes a todos los vector stores que soporta.",
+    "en": "The system needs <code>$contains</code>-style filters over the document text (\"chapter N\"–type searches use <code>where_document={\"$contains\": \"...\"}</code>, a Chroma-native capability). LlamaIndex <strong>doesn't expose that dialect</strong> through <code>MetadataFilters</code> — it only covers the operators common to every vector store it supports."
+  },
+  "section.retriever.subheading.3": {
+    "es": "La salida elegida: bajar un nivel",
+    "en": "The chosen escape hatch: drop down a level"
+  },
+  "section.retriever.body.p.6": {
+    "es": "En vez de pelearse con la abstracción, el retriever habla <strong>directo a la colección de Chroma</strong>:",
+    "en": "Instead of fighting the abstraction, the retriever talks <strong>directly to the Chroma collection</strong>:"
+  },
+  "section.retriever.code.1": {
+    "es": "<code><span class=\"tok-k\">class</span> <span class=\"tok-f\">ChromaFilterRetriever</span>(BaseRetriever):\n    <span class=\"tok-k\">def</span> <span class=\"tok-f\">__init__</span>(self, similarity_top_k=TOP_K_PER_QUERY, where=<span class=\"tok-k\">None</span>, where_document=<span class=\"tok-k\">None</span>):\n        <span class=\"tok-f\">super</span>().<span class=\"tok-f\">__init__</span>()  <span class=\"tok-c\"># registra el callback manager de BaseRetriever — no es opcional</span>\n        self._similarity_top_k = similarity_top_k\n        self._where = where\n        self._where_document = where_document\n\n    <span class=\"tok-k\">def</span> <span class=\"tok-f\">_retrieve</span>(self, query_bundle: QueryBundle) -&gt; list[NodeWithScore]:\n        <span class=\"tok-c\"># (1) Embebemos la query A MANO con el mismo modelo del ingest.</span>\n        embed_model = <span class=\"tok-f\">_get_embed_model</span>()\n        query_embedding = embed_model.<span class=\"tok-f\">get_query_embedding</span>(query_bundle.query_str)\n\n        <span class=\"tok-c\"># (2) Armamos los kwargs para el cliente NATIVO de chromadb.</span>\n        kwargs: dict = {\n            <span class=\"tok-s\">\"query_embeddings\"</span>: [query_embedding],\n            <span class=\"tok-s\">\"n_results\"</span>: self._similarity_top_k,\n            <span class=\"tok-s\">\"include\"</span>: [<span class=\"tok-s\">\"documents\"</span>, <span class=\"tok-s\">\"metadatas\"</span>, <span class=\"tok-s\">\"distances\"</span>],\n        }\n        <span class=\"tok-k\">if</span> self._where <span class=\"tok-k\">is not None</span>:\n            kwargs[<span class=\"tok-s\">\"where\"</span>] = self._where\n        <span class=\"tok-k\">if</span> self._where_document <span class=\"tok-k\">is not None</span>:\n            <span class=\"tok-c\"># Capacidad de Chroma que el path stock NO expone.</span>\n            kwargs[<span class=\"tok-s\">\"where_document\"</span>] = self._where_document\n\n        <span class=\"tok-c\"># (3) Llamada directa a la colección Chroma. Devuelve dicts crudos:</span>\n        <span class=\"tok-c\">#     {\"documents\": [[...]], \"metadatas\": [[...]], \"distances\": [[...]]}</span>\n        result = <span class=\"tok-f\">_get_chroma_collection</span>().<span class=\"tok-f\">query</span>(**kwargs)\n\n        <span class=\"tok-c\"># (4) Reconstruimos TextNode + NodeWithScore desde esos dicts</span>\n        <span class=\"tok-c\">#     y convertimos distancia → score (1 - distance) para que</span>\n        <span class=\"tok-c\">#     el resto del pipeline (rerank) lea \"más alto = mejor\".</span>\n        <span class=\"tok-c\"># ... ver service.py para el detalle del loop ...</span>\n</code>",
+    "en": "<code><span class=\"tok-k\">class</span> <span class=\"tok-f\">ChromaFilterRetriever</span>(BaseRetriever):\n    <span class=\"tok-k\">def</span> <span class=\"tok-f\">__init__</span>(self, similarity_top_k=TOP_K_PER_QUERY, where=<span class=\"tok-k\">None</span>, where_document=<span class=\"tok-k\">None</span>):\n        <span class=\"tok-f\">super</span>().<span class=\"tok-f\">__init__</span>()  <span class=\"tok-c\"># registers BaseRetriever's callback manager — not optional</span>\n        self._similarity_top_k = similarity_top_k\n        self._where = where\n        self._where_document = where_document\n\n    <span class=\"tok-k\">def</span> <span class=\"tok-f\">_retrieve</span>(self, query_bundle: QueryBundle) -&gt; list[NodeWithScore]:\n        <span class=\"tok-c\"># (1) Embed the query BY HAND with the same model used at ingest.</span>\n        embed_model = <span class=\"tok-f\">_get_embed_model</span>()\n        query_embedding = embed_model.<span class=\"tok-f\">get_query_embedding</span>(query_bundle.query_str)\n\n        <span class=\"tok-c\"># (2) Build kwargs for the NATIVE chromadb client.</span>\n        kwargs: dict = {\n            <span class=\"tok-s\">\"query_embeddings\"</span>: [query_embedding],\n            <span class=\"tok-s\">\"n_results\"</span>: self._similarity_top_k,\n            <span class=\"tok-s\">\"include\"</span>: [<span class=\"tok-s\">\"documents\"</span>, <span class=\"tok-s\">\"metadatas\"</span>, <span class=\"tok-s\">\"distances\"</span>],\n        }\n        <span class=\"tok-k\">if</span> self._where <span class=\"tok-k\">is not None</span>:\n            kwargs[<span class=\"tok-s\">\"where\"</span>] = self._where\n        <span class=\"tok-k\">if</span> self._where_document <span class=\"tok-k\">is not None</span>:\n            <span class=\"tok-c\"># Chroma capability the stock path does NOT expose.</span>\n            kwargs[<span class=\"tok-s\">\"where_document\"</span>] = self._where_document\n\n        <span class=\"tok-c\"># (3) Direct call to the Chroma collection. Returns raw dicts:</span>\n        <span class=\"tok-c\">#     {\"documents\": [[...]], \"metadatas\": [[...]], \"distances\": [[...]]}</span>\n        result = <span class=\"tok-f\">_get_chroma_collection</span>().<span class=\"tok-f\">query</span>(**kwargs)\n\n        <span class=\"tok-c\"># (4) Reconstruct TextNode + NodeWithScore from those dicts</span>\n        <span class=\"tok-c\">#     and convert distance → score (1 - distance) so that</span>\n        <span class=\"tok-c\">#     the rest of the pipeline (rerank) reads \"higher = better\".</span>\n        <span class=\"tok-c\"># ... see service.py for the loop details ...</span>\n</code>"
+  },
+  "section.retriever.body.p.7": {
+    "es": "Cada bloque numerado del snippet corresponde a un detalle que en el path stock no tendrías que escribir:",
+    "en": "Each numbered block in the snippet maps to a detail you wouldn't have to write on the stock path:"
+  },
+  "section.retriever.list.1": {
+    "es": "\n<li><strong>(1) Embedding manual de la query.</strong> En el path stock (<code>index.as_retriever(...)</code>) el retriever embebe la query internamente. Acá, como hablás directo al cliente <code>chromadb</code>, te toca a vos. Lo crítico es usar exactamente <strong>el mismo <code>embed_model</code> que usaste al ingestar</strong> — de ahí la importancia del singleton de la sección 3. Si usaras otro modelo, los vectores no son comparables y los resultados son ruido.</li>\n<li><strong>(2) Filtros nativos de Chroma.</strong> <code>where</code> filtra por metadata exacta (igual que el path stock), pero <code>where_document</code> aplica operadores sobre el TEXTO del chunk — incluido <code>$contains</code>, que es lo que la abstracción <code>MetadataFilters</code> de LlamaIndex no expone. Esta es la razón de fondo de todo el archivo.</li>\n<li><strong>(3) Llamada cruda al backend.</strong> <code>_get_chroma_collection().query(**kwargs)</code> devuelve un diccionario con listas de listas (Chroma soporta múltiples queries por request, por eso el doble nesting). Hay que indexar <code>[0]</code> para quedarte con la única query que mandaste.</li>\n<li><strong>(4) Reconstrucción y conversión de score.</strong> Como esquivás <code>ChromaVectorStore</code>, Chroma no te devuelve <code>NodeWithScore</code> sino dicts crudos. Tenés que envolverlos a mano para que el resto del pipeline funcione. Y dado que Chroma devuelve <em>distancia</em> coseno (más bajo = mejor) y LlamaIndex espera <em>score</em> (más alto = mejor), aplicás <code>score = 1.0 - distance</code>.</li>\n",
+    "en": "\n<li><strong>(1) Manual query embedding.</strong> On the stock path (<code>index.as_retriever(...)</code>) the retriever embeds the query for you. Here, since you're talking straight to the <code>chromadb</code> client, it's on you. The critical bit is to use <strong>the exact same <code>embed_model</code> used at ingest</strong> — hence the section-3 singleton. A different model means non-comparable vectors and noisy results.</li>\n<li><strong>(2) Native Chroma filters.</strong> <code>where</code> filters by exact metadata (same as the stock path), but <code>where_document</code> applies operators over the chunk's TEXT — including <code>$contains</code>, which is precisely what LlamaIndex's <code>MetadataFilters</code> abstraction doesn't expose. This is the reason this whole file exists.</li>\n<li><strong>(3) Raw backend call.</strong> <code>_get_chroma_collection().query(**kwargs)</code> returns a dict of list-of-lists (Chroma supports multiple queries per request, hence the double nesting). You index <code>[0]</code> to get the single query you sent.</li>\n<li><strong>(4) Reconstruction and score conversion.</strong> Because you're bypassing <code>ChromaVectorStore</code>, Chroma doesn't hand you <code>NodeWithScore</code>s — just raw dicts. You have to wrap them yourself so the rest of the pipeline works. And since Chroma returns cosine <em>distance</em> (lower = better) while LlamaIndex expects <em>score</em> (higher = better), you apply <code>score = 1.0 - distance</code>.</li>\n"
+  },
+  "section.retriever.body.p.8": {
+    "es": "El <code>super().__init__()</code> del <code>__init__</code> no es decorativo: <code>BaseRetriever</code> registra ahí el <em>callback manager</em> que el resto del framework espera encontrar. Sin esa llamada, el retriever revienta en runtime con LlamaIndex ≥ 0.10 cuando algún postprocessor o query engine intenta emitir un evento. Y un ejemplo de uso de una línea para fijar la forma:",
+    "en": "The <code>super().__init__()</code> in <code>__init__</code> isn't decorative: <code>BaseRetriever</code> registers its <em>callback manager</em> there, which the rest of the framework expects to find. Without that call, the retriever blows up at runtime with LlamaIndex ≥ 0.10 the moment a postprocessor or query engine tries to emit an event. And a one-line usage example to anchor the shape:"
+  },
+  "section.retriever.callout.1": {
+    "es": "\n<strong>Lo que se pierde al bajar al cliente nativo.</strong> Salir de <code>VectorIndexRetriever</code> tiene costo: (a) la validación pydantic de <code>MetadataFilters</code> que te avisa si pasás un operador inválido — acá los <code>where</code>/<code>where_document</code> son dicts crudos y un typo se descubre cuando Chroma responde con error en runtime; (b) la portabilidad — si mañana migrás a Qdrant, Pinecone o Weaviate, hay que reescribir el retriever entero con el dialecto del nuevo backend; (c) los eventos automáticos del callback manager que <code>VectorIndexRetriever</code> emite (<code>EventPayload.RETRIEVE</code> con timing y payload) sin que vos hagas nada — acá tendrías que loguearlos a mano si los necesitás. En este proyecto el trade-off vale la pena: el filtro <code>$contains</code> es la única forma limpia de hacer \"capítulo N\" como búsqueda full-text. Si tu caso de uso no lo necesita, quedate con <code>MetadataFilters</code> + <code>VectorIndexRetriever</code>.\n",
+    "en": "\n<strong>What you lose by dropping to the native client.</strong> Stepping outside <code>VectorIndexRetriever</code> has a cost: (a) the pydantic validation of <code>MetadataFilters</code> that flags invalid operators — here <code>where</code>/<code>where_document</code> are raw dicts and a typo only surfaces when Chroma responds with an error at runtime; (b) portability — if you migrate to Qdrant, Pinecone, or Weaviate, you rewrite the retriever from scratch with the new backend's dialect; (c) the automatic callback-manager events that <code>VectorIndexRetriever</code> emits (<code>EventPayload.RETRIEVE</code> with timing and payload) without your involvement — here you'd have to log them by hand. In this project the trade-off is worth it: the <code>$contains</code> filter is the only clean way to handle \"chapter N\" as a full-text search. If your use case doesn't need that, stick with <code>MetadataFilters</code> + <code>VectorIndexRetriever</code>.\n"
+  },
+  "section.retriever.callout.2": {
+    "es": "\n<strong>Lección general.</strong> Cuando una abstracción del framework no expone una capacidad del backend, podés <strong>bajar un nivel</strong> y hablarle directo. Heredar de <code>BaseRetriever</code> mantiene la pieza compatible con el resto del ecosistema (rerankers, query engines), aunque por dentro saltees a la API nativa.\n",
+    "en": "\n<strong>General lesson.</strong> When a framework abstraction doesn't expose a backend capability you need, you can <strong>drop down a level</strong> and call the backend directly. Inheriting from <code>BaseRetriever</code> keeps the piece compatible with the rest of the ecosystem (rerankers, query engines), even when its insides bypass to the native API.\n"
+  },
+  "section.queryengine.span.1": {
+    "es": "6. <code>RagQueryEngine</code> — el pipeline como <code>CustomQueryEngine</code>",
+    "en": "6. <code>RagQueryEngine</code> — the pipeline as a <code>CustomQueryEngine</code>"
+  },
+  "section.queryengine.body.p.1": {
+    "es": "Otro punto donde se podría haber hecho algo más simple y se eligió lo \"framework-native\".",
+    "en": "Another spot where something simpler was on the table — and the \"framework-native\" route was picked instead."
+  },
+  "section.queryengine.subheading.1": {
+    "es": "Camino directo vs. camino elegido",
+    "en": "Direct path vs. the path chosen"
+  },
+  "section.queryengine.body.p.2": {
+    "es": "<strong>Directo:</strong> orquestar los 5 pasos como funciones sueltas dentro del <code>query()</code> del servicio.",
+    "en": "<strong>Direct:</strong> orchestrate the 5 steps as plain functions inside the service's <code>query()</code>."
+  },
+  "section.queryengine.body.p.3": {
+    "es": "<strong>Elegido:</strong> subclasear <code>CustomQueryEngine</code>. Ventajas:",
+    "en": "<strong>Chosen:</strong> subclass <code>CustomQueryEngine</code>. The payoffs:"
+  },
+  "section.queryengine.list.1": {
+    "es": "\n<li>El pipeline pasa a ser un <strong>objeto LlamaIndex de primera clase</strong>. Esto trae tres cosas concretas:\n    <ul>\n<li><strong>Instrumentación/callbacks gratis:</strong> LlamaIndex tiene un <code>CallbackManager</code> global (<code>Settings.callback_manager</code>) que se entera automáticamente cuando un objeto del framework arranca o termina cada uno de sus eventos internos (<code>EventPayload.QUERY</code>, <code>RETRIEVE</code>, <code>LLM</code>, etc.). Si subclaseás <code>CustomQueryEngine</code>, tu pipeline emite esos eventos sin que escribas una sola línea de logging — y plug-ins como Arize Phoenix, Langfuse, OpenInference o el handler oficial <code>LlamaDebugHandler</code> los consumen automáticamente para mostrarte traces, latencias por paso y costos por request en una UI. <em>Honestidad:</em> este código no aprovecha los callbacks (loguea a mano con el <code>logger</code> estándar), pero quedan disponibles si en el futuro querés enchufar Phoenix/Langfuse sin tocar <code>custom_query</code>.</li>\n<li><strong>Integración con agentes:</strong> un <code>QueryEngine</code> se puede envolver en un <code>QueryEngineTool</code> con una sola línea (<code>QueryEngineTool.from_defaults(engine, name=\"rag_libros\", description=\"...\")</code>) y entregárselo a cualquier agente del framework (<code>FunctionAgent</code>, <code>ReActAgent</code>, etc.) como una <em>herramienta</em> entre otras (calculadora, búsqueda web, APIs externas). El agente decide cuándo invocarlo. Aterrizado: si mañana querés que un agente decida \"preguntarle a los libros vs. usar la calculadora vs. hacer una búsqueda web\", no hay que reescribir nada del RAG — el <code>QueryEngine</code> que ya tenés ES la herramienta. Si nuestro pipeline fuera un puñado de funciones sueltas, habría que escribir el adapter a mano.</li>\n<li><strong>Componibilidad declarativa:</strong> entra en <code>QueryPipeline</code>, en routers y en transforms del framework sin glue code.</li>\n</ul>\n</li>\n<li>Sigue convenciones idiomáticas del framework (<code>custom_query</code>; también podrías exponer <code>response_gen</code> para streaming, pero acá no se usa porque la pipeline retorna la respuesta completa de una sola vez), lo que hace que el código se lea como \"más LlamaIndex\" para alguien que viene de la documentación oficial.</li>\n",
+    "en": "\n<li>The pipeline becomes a <strong>first-class LlamaIndex object</strong>. Three concrete benefits follow:\n    <ul>\n<li><strong>Free instrumentation/callbacks:</strong> LlamaIndex ships a global <code>CallbackManager</code> (<code>Settings.callback_manager</code>) that automatically observes when any framework object starts or finishes each of its internal events (<code>EventPayload.QUERY</code>, <code>RETRIEVE</code>, <code>LLM</code>, etc.). Subclass <code>CustomQueryEngine</code> and your pipeline emits those events without a single line of logging — and plugins like Arize Phoenix, Langfuse, OpenInference, or the official <code>LlamaDebugHandler</code> consume them automatically to show you traces, per-step latencies, and per-request costs in a UI. <em>Honest note:</em> this code doesn't take advantage of the callbacks (it logs by hand with the standard <code>logger</code>), but they remain available if you later want to plug in Phoenix/Langfuse without touching <code>custom_query</code>.</li>\n<li><strong>Agent integration:</strong> a <code>QueryEngine</code> can be wrapped in a <code>QueryEngineTool</code> with one line (<code>QueryEngineTool.from_defaults(engine, name=\"rag_books\", description=\"...\")</code>) and handed to any framework agent (<code>FunctionAgent</code>, <code>ReActAgent</code>, etc.) as one <em>tool</em> among others (calculator, web search, external APIs). The agent decides when to invoke it. Concretely: if tomorrow you want an agent to choose \"ask the books vs. use the calculator vs. hit a web search\", you don't rewrite the RAG — the <code>QueryEngine</code> you already have IS the tool. If our pipeline were a handful of loose functions, we'd have to write that adapter ourselves.</li>\n<li><strong>Declarative composability:</strong> it slots into <code>QueryPipeline</code>, into routers, and into framework transforms with no glue code.</li>\n</ul>\n</li>\n<li>It follows the framework's idioms (<code>custom_query</code>; you could also expose <code>response_gen</code> for streaming, but we don't here because the pipeline returns the full answer in one shot), which makes the code read as \"more LlamaIndex\" for anyone coming from the official docs.</li>\n"
+  },
+  "section.queryengine.subheading.2": {
+    "es": "Una clase pydantic, no una clase Python normal",
+    "en": "A pydantic class, not a regular Python class"
+  },
+  "section.queryengine.body.p.4": {
+    "es": "Cosas a notar:",
+    "en": "Things to notice:"
+  },
+  "section.queryengine.list.2": {
+    "es": "\n<li><strong>Es un Pydantic model.</strong> Los atributos se declaran como <strong>campos de clase con tipo</strong>, no se asignan en <code>__init__</code>. Esto es muy distinto a la mayoría de clases Python que vas a haber visto.</li>\n<li><strong><code>arbitrary_types_allowed=True</code></strong> es necesario porque <code>LLM</code> e <code>InfinityRerank</code> no son tipos pydantic-friendly. Sin esto, pydantic se queja al instanciar.</li>\n<li><strong>El método obligatorio es <code>custom_query(self, query_str: str) -&gt; str | Response</code>.</strong> Ese es el contrato que pide <code>CustomQueryEngine</code>: podés devolver un string crudo (lo que hace este código) o un <code>Response</code> rico de LlamaIndex con <code>source_nodes</code>, <code>metadata</code>, etc. — el framework acepta ambas.</li>\n",
+    "en": "\n<li><strong>It's a Pydantic model.</strong> Attributes are declared as <strong>typed class fields</strong>, not assigned inside <code>__init__</code>. That's quite different from most Python classes you've seen.</li>\n<li><strong><code>arbitrary_types_allowed=True</code></strong> is required because <code>LLM</code> and <code>InfinityRerank</code> aren't pydantic-friendly types. Without it, pydantic complains at instantiation.</li>\n<li><strong>The mandatory method is <code>custom_query(self, query_str: str) -&gt; str | Response</code>.</strong> That's <code>CustomQueryEngine</code>'s contract: return a raw string (what this code does) or a rich LlamaIndex <code>Response</code> with <code>source_nodes</code>, <code>metadata</code>, etc. — the framework accepts both.</li>\n"
+  },
+  "section.queryengine.body.p.5": {
+    "es": "<strong>Cómo se invoca.</strong> <code>CustomQueryEngine</code> expone dos entrypoints: <code>custom_query(str) → str | Response</code> (lo que vos implementás, sin instrumentación añadida) y <code>query(str) → Response</code> (heredado, envuelve tu <code>custom_query</code> con el callback manager y emite los eventos del framework). En este código <code>service.query()</code> llama directo a <code>engine.custom_query(msg)</code> porque el logging propio ya cubre las observaciones que necesitamos; si quisieras enchufar Phoenix/Langfuse sin tocar nada más, la opción es invocar <code>engine.query(msg)</code> y los eventos empiezan a fluir.",
+    "en": "<strong>How you call it.</strong> <code>CustomQueryEngine</code> exposes two entrypoints: <code>custom_query(str) → str | Response</code> (the one you implement, with no added instrumentation) and <code>query(str) → Response</code> (inherited, wraps your <code>custom_query</code> with the callback manager and emits the framework's events). In this code <code>service.query()</code> calls <code>engine.custom_query(msg)</code> directly because the in-house logging already covers the observability we need; if you wanted to plug in Phoenix/Langfuse without touching anything else, the move is to invoke <code>engine.query(msg)</code> instead, and the events start flowing."
+  },
+  "section.queryengine.subheading.3": {
+    "es": "Los 5 pasos dentro de <code>custom_query</code>",
+    "en": "The 5 steps inside <code>custom_query</code>"
+  },
+  "section.queryengine.code.1": {
+    "es": "<code><span class=\"tok-k\">def</span> <span class=\"tok-f\">custom_query</span>(self, query_str: str) -&gt; str:\n    <span class=\"tok-c\"># Paso 1: expandir. La query original queda en el índice 0 para que</span>\n    <span class=\"tok-c\"># siempre pese en el RRF, incluso si las paráfrasis derivan de tema.</span>\n    expansions = <span class=\"tok-f\">expand_queries</span>(query_str)\n    queries = [query_str, *expansions]\n\n    <span class=\"tok-c\"># Paso 2: retrieve (una corrida por cada query)</span>\n    ranked_lists = []\n    <span class=\"tok-k\">for</span> q <span class=\"tok-k\">in</span> queries:\n        retriever = <span class=\"tok-f\">ChromaFilterRetriever</span>(\n            similarity_top_k=TOP_K_PER_QUERY,\n            where=self.retriever_factory_where,\n            where_document=self.retriever_factory_where_document,\n        )\n        hits = retriever.<span class=\"tok-f\">retrieve</span>(q)\n        ranked_lists.<span class=\"tok-f\">append</span>(hits)\n\n    <span class=\"tok-c\"># Paso 3: RRF fuse (dedup por contenido del nodo, top-N por score)</span>\n    <span class=\"tok-k\">if</span> <span class=\"tok-f\">len</span>(ranked_lists) == <span class=\"tok-n\">1</span>:\n        candidates = ranked_lists[<span class=\"tok-n\">0</span>]\n    <span class=\"tok-k\">else</span>:\n        candidates = [node <span class=\"tok-k\">for</span> _, node <span class=\"tok-k\">in</span> <span class=\"tok-f\">rrf_fuse_nodes</span>(ranked_lists)]\n\n    <span class=\"tok-c\"># Paso 4: rerank</span>\n    reranked = self.reranker.<span class=\"tok-f\">postprocess_nodes</span>(\n        candidates, query_bundle=<span class=\"tok-f\">QueryBundle</span>(query_str=query_str)\n    )\n\n    <span class=\"tok-c\"># Paso 5: generate</span>\n    safe_question = <span class=\"tok-f\">sanitize_question</span>(query_str)\n    messages = <span class=\"tok-f\">build_prompt</span>(\n        context=<span class=\"tok-f\">format_nodes</span>(reranked),\n        nonce=secrets.<span class=\"tok-f\">token_hex</span>(NONCE_BYTES),\n        question=safe_question,\n        history=<span class=\"tok-f\">recent_messages</span>(),\n    )\n    response = self.llm.<span class=\"tok-f\">chat</span>(messages=messages)\n    answer = <span class=\"tok-f\">str</span>(response.message.content <span class=\"tok-k\">or</span> <span class=\"tok-s\">\"\"</span>)\n\n    <span class=\"tok-f\">append_turn</span>(safe_question, answer)\n    <span class=\"tok-k\">return</span> answer\n</code>",
+    "en": "<code><span class=\"tok-k\">def</span> <span class=\"tok-f\">custom_query</span>(self, query_str: str) -&gt; str:\n    <span class=\"tok-c\"># Step 1: expand. The original query stays at index 0 so it always</span>\n    <span class=\"tok-c\"># carries weight in the RRF, even if the paraphrases drift off-topic.</span>\n    expansions = <span class=\"tok-f\">expand_queries</span>(query_str)\n    queries = [query_str, *expansions]\n\n    <span class=\"tok-c\"># Step 2: retrieve (one pass per query)</span>\n    ranked_lists = []\n    <span class=\"tok-k\">for</span> q <span class=\"tok-k\">in</span> queries:\n        retriever = <span class=\"tok-f\">ChromaFilterRetriever</span>(\n            similarity_top_k=TOP_K_PER_QUERY,\n            where=self.retriever_factory_where,\n            where_document=self.retriever_factory_where_document,\n        )\n        hits = retriever.<span class=\"tok-f\">retrieve</span>(q)\n        ranked_lists.<span class=\"tok-f\">append</span>(hits)\n\n    <span class=\"tok-c\"># Step 3: RRF fuse (dedupe by node content, top-N by score)</span>\n    <span class=\"tok-k\">if</span> <span class=\"tok-f\">len</span>(ranked_lists) == <span class=\"tok-n\">1</span>:\n        candidates = ranked_lists[<span class=\"tok-n\">0</span>]\n    <span class=\"tok-k\">else</span>:\n        candidates = [node <span class=\"tok-k\">for</span> _, node <span class=\"tok-k\">in</span> <span class=\"tok-f\">rrf_fuse_nodes</span>(ranked_lists)]\n\n    <span class=\"tok-c\"># Step 4: rerank</span>\n    reranked = self.reranker.<span class=\"tok-f\">postprocess_nodes</span>(\n        candidates, query_bundle=<span class=\"tok-f\">QueryBundle</span>(query_str=query_str)\n    )\n\n    <span class=\"tok-c\"># Step 5: generate</span>\n    safe_question = <span class=\"tok-f\">sanitize_question</span>(query_str)\n    messages = <span class=\"tok-f\">build_prompt</span>(\n        context=<span class=\"tok-f\">format_nodes</span>(reranked),\n        nonce=secrets.<span class=\"tok-f\">token_hex</span>(NONCE_BYTES),\n        question=safe_question,\n        history=<span class=\"tok-f\">recent_messages</span>(),\n    )\n    response = self.llm.<span class=\"tok-f\">chat</span>(messages=messages)\n    answer = <span class=\"tok-f\">str</span>(response.message.content <span class=\"tok-k\">or</span> <span class=\"tok-s\">\"\"</span>)\n\n    <span class=\"tok-f\">append_turn</span>(safe_question, answer)\n    <span class=\"tok-k\">return</span> answer\n</code>"
+  },
+  "section.queryengine.body.p.6": {
+    "es": "Cuatro cosas para subrayar:",
+    "en": "Four things to underline:"
+  },
+  "section.queryengine.list.3": {
+    "es": "\n<li>El paso 1 invoca <code>expand_queries(query_str)</code>, que pide al LLM (vía <code>response_format=json_object</code>) <code>N_EXPANDED=2</code> paráfrasis. La query original se mantiene como <code>queries[0]</code>: si las paráfrasis se desvían del tema, el ranking original sigue pesando en la fusión.</li>\n<li>El paso 2 corre una retrieval por cada query: con la expansión activada, son <strong>3 retrievals</strong> (original + 2 paráfrasis), cada una con <code>top_k=5</code>. Eso da hasta 15 candidatos.</li>\n<li>El paso 3 los funde con <strong>RRF</strong> (Reciprocal Rank Fusion) — ver el callout más abajo.</li>\n<li>El reranker es un <code>BaseNodePostprocessor</code> — interfaz nativa. Recibe la lista y un <code>QueryBundle</code>, que es la representación que LlamaIndex usa para queries (encapsula el string + opcionalmente embedding + metadata). <code>self.llm.chat(messages=...)</code> devuelve un <code>ChatResponse</code> cuyo contenido vive en <code>.message.content</code>.</li>\n",
+    "en": "\n<li>Step 1 invokes <code>expand_queries(query_str)</code>, which asks the LLM (via <code>response_format=json_object</code>) for <code>N_EXPANDED=2</code> paraphrases. The original query stays at <code>queries[0]</code>: if the paraphrases drift off-topic, the original ranking still carries weight in the fusion.</li>\n<li>Step 2 runs one retrieval per query: with expansion enabled, that's <strong>3 retrievals</strong> (original + 2 paraphrases), each with <code>top_k=5</code> — up to 15 candidates total.</li>\n<li>Step 3 fuses them with <strong>RRF</strong> (Reciprocal Rank Fusion) — see the callout below.</li>\n<li>The reranker is a <code>BaseNodePostprocessor</code> — native interface. It receives the list plus a <code>QueryBundle</code>, LlamaIndex's representation of a query (string + optionally an embedding + metadata). <code>self.llm.chat(messages=...)</code> returns a <code>ChatResponse</code> whose content sits at <code>.message.content</code>.</li>\n"
+  },
+  "section.queryengine.callout.1": {
+    "es": "\n<strong>¿Qué hace RRF?</strong> Toma N listas rankeadas (acá, las 3 listas que devolvieron las 3 retrievals) y combina sus posiciones en un único ranking fusionado. La fórmula es <code>score(doc) = Σ 1 / (k + rank_i)</code>, sumada sobre cada lista donde el doc aparece. <strong>Constante k=60</strong> (Cormack, Clarke &amp; Büttcher 2009) — un valor alto suaviza la diferencia entre los primeros puestos, lo que evita que un único top-1 domine. En el código, <code>rrf_fuse_nodes</code> dedupea por <code>node.get_content()</code>: dos nodos con el mismo texto se colapsan a una entrada cuya score es la suma de sus contribuciones. El resultado se trunca a <code>TOP_K_AFTER_FUSION=10</code> antes de mandarlo al reranker.\n",
+    "en": "\n<strong>What does RRF do?</strong> It takes N ranked lists (here, the 3 lists from the 3 retrievals) and combines their positions into a single fused ranking. The formula is <code>score(doc) = Σ 1 / (k + rank_i)</code>, summed across each list where the doc appears. <strong>Constant k=60</strong> (Cormack, Clarke &amp; Büttcher 2009) — a high value softens the gap between the top positions, preventing a single top-1 from dominating. In code, <code>rrf_fuse_nodes</code> dedupes by <code>node.get_content()</code>: two nodes with the same text collapse into one entry whose score is the sum of their contributions. The result is trimmed to <code>TOP_K_AFTER_FUSION=10</code> before going to the reranker.\n"
+  },
+  "section.queryengine.callout.2": {
+    "es": "\n<strong>¿Qué hace un reranker?</strong> Después del retrieve + fuse tenés ~10 candidatos ordenados por <em>similitud vectorial</em> (rápida pero gruesa: compara embeddings pre-calculados). El reranker es un segundo modelo, esta vez un <strong>cross-encoder</strong>, que <em>relee</em> cada par <code>(query, candidato)</code> en conjunto y le pone un score de relevancia mucho más fino. Es más lento por candidato (corre el modelo entero por cada par) pero solo lo aplicás a los top-10, no a toda la base — por eso la pipeline tiene retrieve + rerank en vez de un único paso. Acá el reranker es un servicio HTTP (Infinity, sirviendo <code>gte-multilingual-reranker-base</code>) y se queda con los <code>TOP_K_FINAL=3</code> mejores. Esos 3 son los únicos chunks que terminan en el prompt del LLM.\n",
+    "en": "\n<strong>What does a reranker do?</strong> After retrieve + fuse, you have ~10 candidates ranked by <em>vector similarity</em> — fast but coarse, since it compares precomputed embeddings. A reranker is a second model, this time a <strong>cross-encoder</strong>, that <em>rereads</em> each <code>(query, candidate)</code> pair jointly and assigns a much finer relevance score. It's slower per candidate (the full model runs for every pair) but you only apply it to the top-10, not the whole corpus — that's why the pipeline is retrieve + rerank rather than a single step. Here the reranker is an HTTP service (Infinity, serving <code>gte-multilingual-reranker-base</code>) and it keeps the <code>TOP_K_FINAL=3</code> best. Those 3 are the only chunks that make it into the LLM's prompt.\n"
+  },
+  "section.queryengine.callout.3": {
+    "es": "\n<strong>Memoria de corto plazo.</strong> El paso 5 también persiste el turno con <code>append_turn(safe_question, answer)</code>. Esto guarda el par pregunta/respuesta en un <code>ChatMemoryBuffer</code> que vive en memoria del proceso (módulo <code>memory.py</code>), recortado a las últimas N entradas. La próxima vez que entre una query, <code>recent_messages()</code> trae esos turnos previos para inyectarlos en el prompt vía <code>build_prompt(... history=...)</code>. Como dato sutil pero importante: <code>append_turn</code> se llama <strong>después</strong> del <code>llm.chat</code>, así que si la generación falla, no contaminás la ventana de memoria con un turno medio escrito.\n",
+    "en": "\n<strong>Short-term memory.</strong> Step 5 also persists the turn via <code>append_turn(safe_question, answer)</code>. That stores the question/answer pair in a <code>ChatMemoryBuffer</code> living in process memory (module <code>memory.py</code>), trimmed to the last N entries. On the next query, <code>recent_messages()</code> pulls those prior turns to inject them into the prompt via <code>build_prompt(... history=...)</code>. Subtle but important detail: <code>append_turn</code> is called <strong>after</strong> <code>llm.chat</code>, so if generation fails you don't pollute the memory window with a half-written turn.\n"
+  },
+  "section.queryengine.figcaption.1": {
+    "es": "El <code>QueryEngine</code> hace malabares con los pasos: <strong>R</strong>etrieve, <strong>F</strong>use, <strong>G</strong>enerate.",
+    "en": "The <code>QueryEngine</code> juggles the steps: <strong>R</strong>etrieve, <strong>F</strong>use, <strong>G</strong>enerate."
+  },
+  "section.queryengine.span.2": {
+    "es": "6.1 <code>QueryEngine</code>, <code>ChatEngine</code> o agente: zoom in al árbol de decisión",
+    "en": "6.1 <code>QueryEngine</code>, <code>ChatEngine</code>, or agent: zooming in on the decision tree"
+  },
+  "section.queryengine.body.p.7": {
+    "es": "Después de leer el <code>custom_query</code>, la pregunta surge naturalmente: \"¿no había una pieza llamada <code>ChatEngine</code> que ya hace todo esto, memoria incluida?\". Sí — y vale la pena entender por qué este código eligió <code>CustomQueryEngine</code>.",
+    "en": "After reading <code>custom_query</code>, the question pops up on its own: \"wasn't there a piece called <code>ChatEngine</code> that already does all this, memory and all?\". Yes — and it's worth understanding why this code went with <code>CustomQueryEngine</code> instead."
+  },
+  "section.queryengine.body.p.8": {
+    "es": "Acá hay un punto que confunde mucho: <strong>memoria de la conversación</strong> y <strong>pieza del framework</strong> son cosas distintas. Una cosa es <em>quién mantiene el historial de turnos</em>, y otra es <em>qué clase concreta de LlamaIndex usás como entrypoint</em>. La tabla:",
+    "en": "There's a frequent mix-up here: <strong>conversation memory</strong> and <strong>which framework piece you use</strong> are two different things. One is <em>who owns the turn history</em>; the other is <em>which concrete LlamaIndex class you use as entrypoint</em>. The table:"
+  },
+  "section.queryengine.table.1": {
+    "es": "\n<thead>\n<tr><th>Pieza</th><th>Cuándo usarla</th><th>¿La pieza maneja la memoria por vos?</th></tr>\n</thead>\n<tbody>\n<tr>\n<td><code>QueryEngine</code> (incluido <code>CustomQueryEngine</code>)</td>\n<td>El framework te da un <code>query(str) → Response</code> stateless. Ideal cuando querés <strong>controlar vos</strong> cómo se arma el prompt, qué pasos se ejecutan, qué cache se usa, etc.</td>\n<td><strong>No.</strong> Si querés memoria, la mantenés vos a nivel aplicación e inyectás el historial en el prompt manualmente.</td>\n</tr>\n<tr>\n<td><code>ChatEngine</code></td>\n<td>Conversación multi-turno con la memoria <em>integrada</em> al objeto. Tres modos: <code>condense_question</code> (reescribe la pregunta usando la historia, después corre el query engine), <code>context</code> (retrieve por mensaje + historia en el system prompt), <code>condense_plus_context</code> (combina los dos).</td>\n<td><strong>Sí.</strong> El engine recibe un <code>memory: BaseMemory</code> y se ocupa de leerla / escribirla en cada <code>chat()</code>.</td>\n</tr>\n<tr>\n<td><code>Agent</code></td>\n<td>El LLM decide qué tool usar (RAG, calculadora, API externa…) y en qué orden. Razonamiento multi-paso.</td>\n<td><strong>Sí.</strong> Memoria + un \"scratchpad\" del proceso de decisión.</td>\n</tr>\n</tbody>\n",
+    "en": "\n<thead>\n<tr><th>Piece</th><th>When to use it</th><th>Does the piece handle memory for you?</th></tr>\n</thead>\n<tbody>\n<tr>\n<td><code>QueryEngine</code> (including <code>CustomQueryEngine</code>)</td>\n<td>The framework hands you a stateless <code>query(str) → Response</code>. Ideal when <strong>you</strong> want control over how the prompt is built, which steps run, what caching applies, etc.</td>\n<td><strong>No.</strong> If you want memory, you maintain it at application level and inject the history into the prompt yourself.</td>\n</tr>\n<tr>\n<td><code>ChatEngine</code></td>\n<td>Multi-turn conversation with memory <em>baked into</em> the object. Three modes: <code>condense_question</code> (rewrites the question using history, then runs the query engine), <code>context</code> (retrieve per message + history in the system prompt), <code>condense_plus_context</code> (both).</td>\n<td><strong>Yes.</strong> The engine takes a <code>memory: BaseMemory</code> and reads/writes it on every <code>chat()</code>.</td>\n</tr>\n<tr>\n<td><code>Agent</code></td>\n<td>The LLM decides which tool to invoke (RAG, calculator, external API…) and in what order. Multi-step reasoning.</td>\n<td><strong>Yes.</strong> Memory plus a \"scratchpad\" of the decision process.</td>\n</tr>\n</tbody>\n"
+  },
+  "section.queryengine.subsubheading.1": {
+    "es": "¿Por qué este código usa <code>CustomQueryEngine</code> y no <code>ChatEngine</code> si igual mantiene memoria?",
+    "en": "Why does this code use <code>CustomQueryEngine</code> instead of <code>ChatEngine</code>, if it keeps memory anyway?"
+  },
+  "section.queryengine.body.p.9": {
+    "es": "Es la pregunta correcta y vale aclararla bien, porque a primera vista la columna \"no maneja memoria\" del <code>QueryEngine</code> contradice lo que ves en el código (los <code>append_turn</code> / <code>recent_messages</code>). La distinción importante es:",
+    "en": "It's the right question and worth answering carefully, because at first glance the \"doesn't handle memory\" column for <code>QueryEngine</code> seems to contradict what you'll see in the code (the <code>append_turn</code> / <code>recent_messages</code> calls). The distinction:"
+  },
+  "section.queryengine.list.4": {
+    "es": "\n<li>El <code>ChatEngine</code> <strong>se hace cargo de la memoria por vos</strong>: vos le pedís <code>engine.chat(msg)</code> y él lee la historia, reformula la pregunta si hace falta, llama al retrieve, llama al LLM, y guarda el turno. Todo opaco.</li>\n<li>Con <code>CustomQueryEngine</code> el framework no toca memoria: vos sos dueño del flujo. La memoria existe (en este código vive en <code>memory.py</code> como un <code>ChatMemoryBuffer</code> singleton), pero <strong>la inyectás manualmente</strong> en el prompt de la etapa de generación. Concretamente, dentro de <code>RagQueryEngine.custom_query</code>:\n    <pre><code>messages = <span class=\"tok-f\">build_prompt</span>(\n    context=<span class=\"tok-f\">format_nodes</span>(reranked),\n    nonce=<span class=\"tok-f\">secrets.token_hex</span>(NONCE_BYTES),\n    question=<span class=\"tok-f\">sanitize_question</span>(query_str),\n    history=<span class=\"tok-f\">recent_messages</span>(),  <span class=\"tok-c\"># ← acá entran los últimos N turnos</span>\n)\nresponse = self.llm.<span class=\"tok-f\">chat</span>(messages=messages)\n<span class=\"tok-f\">append_turn</span>(safe_question, answer)  <span class=\"tok-c\"># ← acá se persiste el turno actual</span></code></pre>\n    Es <strong>la misma memoria que daría el <code>ChatEngine</code></strong>, solo que orquestada por el código de la app en vez del framework.\n  </li>\n",
+    "en": "\n<li>The <code>ChatEngine</code> <strong>owns the memory for you</strong>: you call <code>engine.chat(msg)</code> and it reads history, reformulates the question if needed, runs retrieval, runs the LLM, and stores the turn. All opaque.</li>\n<li>With <code>CustomQueryEngine</code> the framework doesn't touch memory: you own the flow. Memory still exists (here it lives in <code>memory.py</code> as a <code>ChatMemoryBuffer</code> singleton), but <strong>you inject it manually</strong> into the prompt at the generation stage. Concretely, inside <code>RagQueryEngine.custom_query</code>:\n    <pre><code>messages = <span class=\"tok-f\">build_prompt</span>(\n    context=<span class=\"tok-f\">format_nodes</span>(reranked),\n    nonce=<span class=\"tok-f\">secrets.token_hex</span>(NONCE_BYTES),\n    question=<span class=\"tok-f\">sanitize_question</span>(query_str),\n    history=<span class=\"tok-f\">recent_messages</span>(),  <span class=\"tok-c\"># ← the last N turns enter here</span>\n)\nresponse = self.llm.<span class=\"tok-f\">chat</span>(messages=messages)\n<span class=\"tok-f\">append_turn</span>(safe_question, answer)  <span class=\"tok-c\"># ← persist the current turn here</span></code></pre>\n    It's <strong>the same memory <code>ChatEngine</code> would give you</strong>, just orchestrated by the application code instead of the framework.\n  </li>\n"
+  },
+  "section.queryengine.body.p.10": {
+    "es": "¿Y por qué hacerlo así si el <code>ChatEngine</code> ya lo resuelve? Tres razones que aparecen al leer el resto del archivo:",
+    "en": "So why do it this way if <code>ChatEngine</code> already solves it? Three reasons that surface as you read the rest of the file:"
+  },
+  "section.queryengine.list.5": {
+    "es": "\n<li><strong>Control del prompt.</strong> El sistema tiene tres capas anti-injection (separación estructural, nonce aleatorio para delimitar la pregunta, sanitización). Eso vive en <code>build_prompt</code>. Con <code>ChatEngine</code> heredás los templates del framework y para imponer este formato tendrías que sobreescribirlos — más código que el camino directo.</li>\n<li><strong>El pipeline no encaja en los modos del <code>ChatEngine</code>.</strong> Acá el flujo es expand → retrieve × N → fuse RRF → rerank. <code>condense_question</code> reformula la pregunta y corre <em>una</em> retrieval; no soporta nativamente las múltiples queries + RRF. Para encajarlo igual habría que envolver toda la pipeline en un retriever custom solo para que <code>ChatEngine</code> la consuma — el envoltorio cuesta lo mismo que orquestarlo afuera.</li>\n<li><strong>Paridad con la rama LangChain.</strong> El otro engine del proyecto también mantiene la memoria a nivel aplicación (vía <code>RunnableWithMessageHistory</code>, que es el equivalente LCEL: una capa de memoria <em>alrededor</em> de un chain stateless, no un objeto stateful como <code>ChatEngine</code>). Tener las dos ramas con la misma forma facilita la comparación lado a lado.</li>\n",
+    "en": "\n<li><strong>Prompt control.</strong> The system layers three anti-injection defenses (structural separation, a random nonce to delimit the question, sanitization). All of that lives in <code>build_prompt</code>. With <code>ChatEngine</code> you inherit the framework's templates, and enforcing this format would mean overriding them — more code than just doing it yourself.</li>\n<li><strong>The pipeline doesn't fit any <code>ChatEngine</code> mode.</strong> The flow here is expand → retrieve × N → fuse RRF → rerank. <code>condense_question</code> rewrites the question and runs <em>one</em> retrieval; it doesn't natively support multi-query + RRF. To make it fit, you'd have to wrap the whole pipeline in a custom retriever just so <code>ChatEngine</code> could consume it — and the wrapper costs as much as orchestrating it externally.</li>\n<li><strong>Parity with the LangChain branch.</strong> The other engine in the project also keeps memory at application level (via <code>RunnableWithMessageHistory</code>, the LCEL equivalent: a memory layer <em>around</em> a stateless chain, not a stateful object like <code>ChatEngine</code>). Keeping both branches shaped the same way makes the side-by-side comparison much cleaner.</li>\n"
+  },
+  "section.queryengine.body.p.11": {
+    "es": "En resumen: la fila \"QueryEngine — no recuerda turnos previos\" de la tabla se refiere a <em>el objeto del framework</em>, no a la app entera. La memoria de corto plazo del MVP funciona y se ve en el prompt — solo que el orquestador es <code>build_prompt(history=...)</code> + <code>append_turn</code>, no <code>ChatEngine</code>.",
+    "en": "In short: the \"QueryEngine — doesn't remember prior turns\" row in the table refers to <em>the framework object</em>, not the whole app. The MVP's short-term memory works and shows up in the prompt — it's just orchestrated by <code>build_prompt(history=...)</code> + <code>append_turn</code> rather than by <code>ChatEngine</code>."
+  },
+  "section.service.span.1": {
+    "es": "7. <code>LlamaindexSrv</code> — el servicio",
+    "en": "7. <code>LlamaindexSrv</code> — the service"
+  },
+  "section.service.body.p.1": {
+    "es": "Implementa la interfaz abstracta <code>RagService</code>. Tiene cuatro piezas que vale la pena ver de a una.",
+    "en": "It implements the abstract <code>RagService</code> interface. Four pieces are worth examining one at a time."
+  },
+  "section.service.subheading.1": {
+    "es": "7.1 <code>_ingest</code> — el flujo de ingesta",
+    "en": "7.1 <code>_ingest</code> — the ingest flow"
+  },
+  "section.service.body.p.2": {
+    "es": "La forma \"100% LlamaIndex\" de ingerir documentos:",
+    "en": "The \"100% LlamaIndex\" way to ingest documents:"
+  },
+  "section.service.div.1": {
+    "es": "\n<div class=\"pipeline-step\">PDFReader.load_data</div>\n<div class=\"pipeline-step\">normalizar metadata</div>\n<div class=\"pipeline-step\">SentenceSplitter</div>\n<div class=\"pipeline-step\">build_chunk_ids</div>\n<div class=\"pipeline-step\">index.insert_nodes (batched)</div>\n",
+    "en": "\n<div class=\"pipeline-step\">PDFReader.load_data</div>\n<div class=\"pipeline-step\">normalize metadata</div>\n<div class=\"pipeline-step\">SentenceSplitter</div>\n<div class=\"pipeline-step\">build_chunk_ids</div>\n<div class=\"pipeline-step\">index.insert_nodes (batched)</div>\n"
+  },
+  "section.service.code.1": {
+    "es": "<code>reader = <span class=\"tok-f\">PDFReader</span>()\n<span class=\"tok-k\">for</span> pdf_path <span class=\"tok-k\">in</span> pdf_paths:\n    pages = reader.<span class=\"tok-f\">load_data</span>(pdf_path)\n    <span class=\"tok-k\">for</span> page_doc <span class=\"tok-k\">in</span> pages:\n        page_label = page_doc.metadata.<span class=\"tok-f\">get</span>(<span class=\"tok-s\">\"page_label\"</span>, <span class=\"tok-s\">\"1\"</span>)\n        <span class=\"tok-k\">try</span>:\n            page_idx = <span class=\"tok-f\">int</span>(page_label) - <span class=\"tok-n\">1</span>\n        <span class=\"tok-k\">except</span> <span class=\"tok-f\">ValueError</span>:\n            <span class=\"tok-c\"># PDFs con paginación romana (\"iv\", \"v\"…) caen acá.</span>\n            page_idx = <span class=\"tok-n\">0</span>\n        <span class=\"tok-c\"># Reemplazo del dict completo a propósito: descartamos el resto</span>\n        <span class=\"tok-c\"># de campos del PDFReader (page_label, etc.) — no se usan aguas abajo.</span>\n        page_doc.metadata = {<span class=\"tok-s\">\"source\"</span>: pdf_path.name, <span class=\"tok-s\">\"page\"</span>: page_idx}\n    documents.<span class=\"tok-f\">extend</span>(pages)\n\nsplitter = <span class=\"tok-f\">SentenceSplitter</span>(\n    chunk_size=CHUNK_TOKENS,\n    chunk_overlap=CHUNK_OVERLAP_TOKENS,\n    tokenizer=<span class=\"tok-f\">_tokenizer_fn</span>(),\n)\nnodes = splitter.<span class=\"tok-f\">get_nodes_from_documents</span>(documents)\n\nids = <span class=\"tok-f\">build_chunk_ids</span>(...)\n<span class=\"tok-k\">for</span> n, nid <span class=\"tok-k\">in</span> <span class=\"tok-f\">zip</span>(nodes, ids):\n    n.id_ = nid\n\nindex = <span class=\"tok-f\">get_index</span>()\n<span class=\"tok-k\">for</span> start <span class=\"tok-k\">in</span> <span class=\"tok-f\">range</span>(<span class=\"tok-n\">0</span>, <span class=\"tok-f\">len</span>(nodes), INGEST_BATCH_SIZE):\n    index.<span class=\"tok-f\">insert_nodes</span>(nodes[start:start + INGEST_BATCH_SIZE])\n</code>",
+    "en": "<code>reader = <span class=\"tok-f\">PDFReader</span>()\n<span class=\"tok-k\">for</span> pdf_path <span class=\"tok-k\">in</span> pdf_paths:\n    pages = reader.<span class=\"tok-f\">load_data</span>(pdf_path)\n    <span class=\"tok-k\">for</span> page_doc <span class=\"tok-k\">in</span> pages:\n        page_label = page_doc.metadata.<span class=\"tok-f\">get</span>(<span class=\"tok-s\">\"page_label\"</span>, <span class=\"tok-s\">\"1\"</span>)\n        <span class=\"tok-k\">try</span>:\n            page_idx = <span class=\"tok-f\">int</span>(page_label) - <span class=\"tok-n\">1</span>\n        <span class=\"tok-k\">except</span> <span class=\"tok-f\">ValueError</span>:\n            <span class=\"tok-c\"># PDFs with roman-numeral pagination (\"iv\", \"v\"…) land here.</span>\n            page_idx = <span class=\"tok-n\">0</span>\n        <span class=\"tok-c\"># We replace the whole dict on purpose: the rest of the PDFReader</span>\n        <span class=\"tok-c\"># fields (page_label, etc.) aren't used downstream.</span>\n        page_doc.metadata = {<span class=\"tok-s\">\"source\"</span>: pdf_path.name, <span class=\"tok-s\">\"page\"</span>: page_idx}\n    documents.<span class=\"tok-f\">extend</span>(pages)\n\nsplitter = <span class=\"tok-f\">SentenceSplitter</span>(\n    chunk_size=CHUNK_TOKENS,\n    chunk_overlap=CHUNK_OVERLAP_TOKENS,\n    tokenizer=<span class=\"tok-f\">_tokenizer_fn</span>(),\n)\nnodes = splitter.<span class=\"tok-f\">get_nodes_from_documents</span>(documents)\n\nids = <span class=\"tok-f\">build_chunk_ids</span>(...)\n<span class=\"tok-k\">for</span> n, nid <span class=\"tok-k\">in</span> <span class=\"tok-f\">zip</span>(nodes, ids):\n    n.id_ = nid\n\nindex = <span class=\"tok-f\">get_index</span>()\n<span class=\"tok-k\">for</span> start <span class=\"tok-k\">in</span> <span class=\"tok-f\">range</span>(<span class=\"tok-n\">0</span>, <span class=\"tok-f\">len</span>(nodes), INGEST_BATCH_SIZE):\n    index.<span class=\"tok-f\">insert_nodes</span>(nodes[start:start + INGEST_BATCH_SIZE])\n</code>"
+  },
+  "section.service.body.p.3": {
+    "es": "Puntos a destacar:",
+    "en": "Worth highlighting:"
+  },
+  "section.service.list.1": {
+    "es": "\n<li><strong>Normalización de metadata.</strong> <code>PDFReader</code> devuelve <code>page_label</code> (string, 1-indexed). Se reescribe a <code>{\"source\", \"page\"}</code> (0-indexed) para que sea idéntico a lo que escribe la rama LangChain del proyecto — así los filtros funcionan igual en ambos engines.</li>\n<li><strong>IDs deterministas.</strong> Permiten que re-ingestar el mismo PDF haga upsert (sobrescribe) en lugar de duplicar embeddings.</li>\n<li><strong><code>index.insert_nodes(...)</code></strong> es <em>el</em> método del <code>VectorStoreIndex</code> para meter nodos ya formados. No re-chunkea, no re-parseaa: embeddea y guarda. Por eso primero usás <code>SentenceSplitter</code> afuera y después <code>insert_nodes</code>.</li>\n<li><strong>Batches de 256.</strong> Cuando llamás a <code>index.insert_nodes(batch)</code>, el índice agrupa los textos del batch y le manda <strong>una sola request</strong> a la API de embeddings de OpenAI con todos esos textos como input. La <a href=\"https://platform.openai.com/docs/api-reference/embeddings/create\">API de Embeddings de OpenAI</a> admite hasta <strong>2048 inputs por request</strong>, lo que reduce drásticamente el overhead de red comparado con embeddear uno por uno. ¿Por qué 256 y no 2048? Por dos razones: <strong>(a)</strong> deja un margen seguro sobre el límite duro contra picos y evita errores tipo \"request demasiado grande\" si los chunks son largos; <strong>(b)</strong> si una request falla por un 5xx transitorio, retryar 256 chunks es barato — retryar 2048 dolería más. 256 es el sweet spot entre throughput y costo de retry.</li>\n",
+    "en": "\n<li><strong>Metadata normalization.</strong> <code>PDFReader</code> emits <code>page_label</code> (a 1-indexed string). It's rewritten to <code>{\"source\", \"page\"}</code> (0-indexed) to match exactly what the LangChain branch of the project writes — so the same filters work across both engines.</li>\n<li><strong>Deterministic IDs.</strong> They let re-ingesting the same PDF perform an upsert (overwrite) instead of duplicating embeddings.</li>\n<li><strong><code>index.insert_nodes(...)</code></strong> is <em>the</em> <code>VectorStoreIndex</code> method for pushing pre-shaped nodes. It doesn't re-chunk, doesn't re-parse: it embeds and saves. That's why you first run <code>SentenceSplitter</code> on the outside and then call <code>insert_nodes</code>.</li>\n<li><strong>Batches of 256.</strong> When you call <code>index.insert_nodes(batch)</code>, the index groups the batch's texts and ships <strong>a single request</strong> to OpenAI's embeddings API with all those texts as input. The <a href=\"https://platform.openai.com/docs/api-reference/embeddings/create\">OpenAI Embeddings API</a> accepts up to <strong>2048 inputs per request</strong>, which slashes network overhead compared to embedding one-by-one. Why 256 and not 2048? Two reasons: <strong>(a)</strong> it leaves a safe margin under the hard limit against spikes and avoids \"request too large\" errors if chunks are long; <strong>(b)</strong> if a request fails on a transient 5xx, retrying 256 chunks is cheap — retrying 2048 stings more. 256 is the sweet spot between throughput and retry cost.</li>\n"
+  },
+  "section.service.subheading.2": {
+    "es": "7.2 <code>_retrieve</code> y <code>_generate</code> — los hooks",
+    "en": "7.2 <code>_retrieve</code> and <code>_generate</code> — the hooks"
+  },
+  "section.service.body.p.4": {
+    "es": "Hooks que cumplen el contrato de la clase abstracta. <code>_retrieve</code> es básicamente \"una vuelta del retriever\". <code>_generate</code> es \"una vuelta del prompt + LLM + memoria\". Existen para testabilidad y para satisfacer la interfaz; el flujo real de producción pasa por <code>query()</code>.",
+    "en": "Hooks that satisfy the abstract class's contract. <code>_retrieve</code> is essentially \"one turn of the retriever\". <code>_generate</code> is \"one turn of prompt + LLM + memory\". They exist for testability and to satisfy the interface — the real production flow runs through <code>query()</code>."
+  },
+  "section.service.subheading.3": {
+    "es": "7.3 <code>query()</code> — el override que arma todo",
+    "en": "7.3 <code>query()</code> — the override that ties everything together"
+  },
+  "section.service.body.p.5": {
+    "es": "Lo que hace de distinto vs. la implementación abstracta default:",
+    "en": "What it does differently from the abstract default:"
+  },
+  "section.service.list.2": {
+    "es": "\n<li><strong>Detecta intención posicional</strong> sobre el mensaje del usuario (lo explico abajo en detalle).</li>\n<li><strong>Si hay intent, carga el manifest del engine</strong> y construye los filtros de Chroma (<code>where</code>, <code>where_document</code>).</li>\n<li>Construye el <code>RagQueryEngine</code> con esos filtros y delega <code>custom_query(msg)</code>.</li>\n",
+    "en": "\n<li><strong>It detects positional intent</strong> on the user's message (covered in detail below).</li>\n<li><strong>If there's an intent, it loads the engine's manifest</strong> and builds the Chroma filters (<code>where</code>, <code>where_document</code>).</li>\n<li>It builds the <code>RagQueryEngine</code> with those filters and delegates to <code>custom_query(msg)</code>.</li>\n"
+  },
+  "section.service.callout.1": {
+    "es": "\n<strong>¿Qué es la \"intención posicional\"?</strong> Es una heurística del MVP para detectar preguntas que apuntan a una <em>posición</em> dentro del libro y no a un tema. Por ejemplo: <em>\"resumime el capítulo 3\"</em>, <em>\"¿qué pasa en la página 47?\"</em>, <em>\"¿cómo termina el libro?\"</em>, <em>\"¿cómo empieza?\"</em>. Una búsqueda por similitud vectorial pura para estas preguntas devuelve cualquier chunk que mencione \"capítulo\" o \"final\" — ruido total. La función <code>detect_positional(msg)</code> usa regex para reconocer esos patrones (<code>página N</code>, <code>capítulo N</code>, <code>al final</code>, <code>al principio</code>) y, si matchea, devuelve un <code>PositionalIntent = (kind, value)</code> que el resto del flujo traduce a un filtro de Chroma <strong>antes</strong> del retrieval. La similitud vectorial sigue corriendo, pero acotada al subconjunto de chunks que cumplen el filtro.\n",
+    "en": "\n<strong>What is \"positional intent\"?</strong> A heuristic in the MVP to catch questions that point at a <em>position</em> inside the book rather than at a topic. For example: <em>\"summarize chapter 3\"</em>, <em>\"what happens on page 47?\"</em>, <em>\"how does the book end?\"</em>, <em>\"how does it start?\"</em>. A pure vector-similarity search for those questions returns any chunk that mentions \"chapter\" or \"end\" — pure noise. <code>detect_positional(msg)</code> uses regex to recognize those patterns (<code>page N</code>, <code>chapter N</code>, <code>at the end</code>, <code>at the beginning</code>) and, on match, returns a <code>PositionalIntent = (kind, value)</code> that the rest of the flow translates into a Chroma filter <strong>before</strong> retrieval. Vector similarity still runs, but restricted to the subset of chunks that satisfy the filter.\n"
+  },
+  "section.service.callout.2": {
+    "es": "\n<strong>¿Y qué es el \"manifest\"?</strong> Un JSON chiquito (<code>backend/app/data/ingested_llamaindex.json</code>) que mantiene un mapa <code>{filename → cantidad_de_páginas}</code> de cada PDF que se ingestó. Se actualiza cuando corrés el ingest. ¿Para qué se usa? Para los intents tipo <em>\"al final\"</em> o <em>\"al principio\"</em>: necesitamos saber cuántas páginas tiene cada libro para construir un filtro tipo \"páginas entre <code>n_pages - 10%</code> y <code>n_pages - 1</code>\". Sin el manifest, no se podría calcular esa ventana. <code>load_manifest(self.engine_name)</code> usa <code>engine_name</code> (\"llamaindex\" o \"langchain\") para leer el archivo correcto — cada engine mantiene su propio manifest porque pueden tener corpus distintos.\n",
+    "en": "\n<strong>And what is the \"manifest\"?</strong> A small JSON file (<code>backend/app/data/ingested_llamaindex.json</code>) that holds a <code>{filename → page_count}</code> map for every PDF that's been ingested. It's updated when you run ingest. What's it for? Intents like <em>\"at the end\"</em> or <em>\"at the beginning\"</em>: we need to know each book's page count to build a filter like \"pages between <code>n_pages - 10%</code> and <code>n_pages - 1</code>\". Without the manifest, that window can't be computed. <code>load_manifest(self.engine_name)</code> uses <code>engine_name</code> (\"llamaindex\" or \"langchain\") to read the right file — each engine maintains its own manifest, since they may have different corpora.\n"
+  },
+  "section.service.body.p.6": {
+    "es": "<strong>Ejemplo end-to-end.</strong> Query: <em>\"¿qué pasa al final de Don Quijote?\"</em> → <code>detect_positional</code> matchea \"al final\" y devuelve <code>intent=(\"end\", \"Don Quijote.pdf\")</code> → el manifest dice que ese PDF tiene 1000 páginas → <code>build_filter</code> arma <code>where={\"page\": {\"$gte\": 900}}</code> y <code>where_document=None</code>. El retrieval vectorial sigue corriendo, pero solo sobre las últimas 100 páginas — los embeddings buscan \"qué pasa\" dentro de ese subconjunto.",
+    "en": "<strong>End-to-end example.</strong> Query: <em>\"what happens at the end of Don Quixote?\"</em> → <code>detect_positional</code> matches \"at the end\" and returns <code>intent=(\"end\", \"Don Quixote.pdf\")</code> → the manifest says that PDF has 1000 pages → <code>build_filter</code> assembles <code>where={\"page\": {\"$gte\": 900}}</code> and <code>where_document=None</code>. The vector retrieval still runs, but only over the last 100 pages — the embeddings look for \"what happens\" within that subset."
+  },
+  "section.service.callout.3": {
+    "es": "\n<strong>Decisión gris.</strong> El engine se construye <em>por request</em>, no se cachea. Razón: los filtros dependen del mensaje del usuario y pueden cambiar de un request al siguiente. Y como las cosas pesadas (índice, LLM, embedder, cliente Chroma) ya son singletons cacheados, instanciar <code>RagQueryEngine</code> es básicamente construir una clase pydantic vacía — el costo es despreciable.\n",
+    "en": "\n<strong>Gray decision.</strong> The engine is built <em>per request</em>, not cached. Reason: the filters depend on the user's message and can change from one request to the next. Since the heavy parts (index, LLM, embedder, Chroma client) are already module-level cached singletons, instantiating <code>RagQueryEngine</code> is essentially constructing an empty pydantic class — the cost is negligible.\n"
+  },
+  "section.service.subheading.4": {
+    "es": "7.4 <code>_index</code> con <code>@cached_property</code>",
+    "en": "7.4 <code>_index</code> with <code>@cached_property</code>"
+  },
+  "section.service.body.p.7": {
+    "es": "Se usa <code>@cached_property</code> (no <code>@lru_cache</code>) porque está <strong>ligado a la instancia</strong>. Esto es importante para tests: si en un test parchás <code>get_index</code>, una nueva instancia del servicio toma el mock; con <code>@lru_cache</code> quedaría capturado a nivel módulo y los tests se contaminarían entre sí.",
+    "en": "<code>@cached_property</code> is used (rather than <code>@lru_cache</code>) because it's <strong>tied to the instance</strong>. This matters for tests: if a test patches <code>get_index</code>, a fresh service instance picks up the mock. With <code>@lru_cache</code> the cached value would be captured at module level and tests would contaminate each other."
+  },
+  "section.service.body.p.8": {
+    "es": "Y no, los dos caches no se pisan: el <code>@lru_cache</code> de <code>get_index</code> cachea a nivel módulo (compartido entre todas las instancias y tests del proceso); el <code>@cached_property</code> cachea a nivel instancia. Son cosas distintas que se complementan — la singleton del módulo asegura que existe un único <code>VectorStoreIndex</code> \"de verdad\", y la cached property memoiza el lookup local del servicio.",
+    "en": "And no, the two caches don't collide: <code>get_index</code>'s <code>@lru_cache</code> caches at module level (shared across every service instance and test in the process); <code>@cached_property</code> caches at instance level. They're different and complementary — the module-level singleton ensures there's a single \"real\" <code>VectorStoreIndex</code>, and the cached property memoizes the service's local lookup."
+  },
+  "section.service.callout.4": {
+    "es": "\n<strong>Disclaimer importante.</strong> Diseñar código de producción <em>pensando en cómo lo van a testear</em> es generalmente <strong>mal criterio</strong>: el código de tests no debería filtrarse en decisiones de la API pública. La regla es al revés — los tests se adaptan al código, no el código a los tests. En un proyecto serio, esta justificación de elegir <code>@cached_property</code> sobre <code>@lru_cache</code> sería suficiente bandera amarilla como para revisarlo (¿podríamos haber hecho los tests más independientes? ¿no estamos dejando un acoplamiento implícito?). Acá nos lo permitimos porque es un MVP educativo y la diferencia entre los dos decoradores también tiene un argumento legítimo (el ciclo de vida del singleton es por servicio, no global), pero vale dejarlo dicho para que no internalices el patrón como buena práctica. <strong>Regla práctica:</strong> usá <code>@cached_property</code> cuando el ciclo de vida del cache realmente sea por instancia (no por proceso). En este caso lo es porque el servicio puede instanciarse N veces — la justificación con tests es accesoria.\n",
+    "en": "\n<strong>Important disclaimer.</strong> Designing production code <em>around how it'll be tested</em> is generally <strong>poor judgment</strong>: test code shouldn't bleed into public-API decisions. The rule runs the other way — tests adapt to the code, not the code to the tests. In a serious project, this justification for choosing <code>@cached_property</code> over <code>@lru_cache</code> would be enough of a yellow flag to revisit (could we have made the tests more independent? aren't we baking in implicit coupling?). We allow it here because it's an educational MVP and the difference between the two decorators also has a legitimate argument (the singleton's lifecycle is per-service, not global), but it's worth saying out loud so you don't internalize the pattern as best practice. <strong>Practical rule:</strong> reach for <code>@cached_property</code> when the cache's lifecycle is genuinely per-instance (not per-process). It is here, because the service may be instantiated N times — the test argument is secondary.\n"
+  },
+  "section.decisiones.span.1": {
+    "es": "8. Resumen de decisiones \"grises\"",
+    "en": "8. Recap of \"gray\" decisions"
+  },
+  "section.decisiones.body.p.1": {
+    "es": "Estas son las que valen la pena recordar para tu propio código:",
+    "en": "These are the ones worth carrying into your own code:"
+  },
+  "section.decisiones.table.1": {
+    "es": "\n<thead>\n<tr><th>Decisión</th><th>Camino directo (quickstart)</th><th>Por qué se hizo distinto</th></tr>\n</thead>\n<tbody>\n<tr>\n<td>Retriever custom sobre Chroma raw</td>\n<td><code>index.as_retriever(filters=MetadataFilters(...))</code></td>\n<td><code>MetadataFilters</code> no expone <code>$contains</code>; necesario para filtros full-text</td>\n</tr>\n<tr>\n<td>Index <code>from_vector_store</code></td>\n<td><code>VectorStoreIndex.from_documents(...)</code></td>\n<td>El ingest se hace aparte; el índice solo es una vista, no re-embeddea al arrancar</td>\n</tr>\n<tr>\n<td>Tokenizer custom en <code>SentenceSplitter</code></td>\n<td>dejar el default</td>\n<td>El default es GPT-2; para que <code>chunk_size=500</code> represente tokens del modelo de embedding hay que pasarle ese tokenizer</td>\n</tr>\n<tr>\n<td>Subclasear <code>CustomQueryEngine</code></td>\n<td>orquestar a mano en el servicio</td>\n<td>Convierte el pipeline en componente nativo (callbacks, instrumentación, composabilidad)</td>\n</tr>\n<tr>\n<td>Re-construir engine por request</td>\n<td>cachearlo</td>\n<td>Cada request puede traer filtros distintos (página, capítulo, \"al final\"…), así que el engine no se puede cachear. Lo importante es que esto sale gratis: el LLM, el embedder, el cliente Chroma y el índice ya viven cacheados a nivel módulo (singletons), así que instanciar el <code>RagQueryEngine</code> es solo construir una clase pydantic.</td>\n</tr>\n<tr>\n<td><code>append_turn</code> después del <code>llm.chat</code></td>\n<td>guardar antes/durante</td>\n<td>Evita corromper la memoria si falla la generación</td>\n</tr>\n<tr>\n<td>Normalizar <code>page_label</code> → <code>page</code></td>\n<td>dejar la metadata que da <code>PDFReader</code></td>\n<td>Paridad con la rama LangChain para que <code>build_filter</code> funcione en ambos</td>\n</tr>\n<tr>\n<td><code>@cached_property</code> para <code>_index</code></td>\n<td><code>@lru_cache</code> o cachear en <code>__init__</code></td>\n<td>Evita contaminación entre tests cuando se patchea <code>get_index</code></td>\n</tr>\n</tbody>\n",
+    "en": "\n<thead>\n<tr><th>Decision</th><th>Direct path (quickstart)</th><th>Why it was done differently</th></tr>\n</thead>\n<tbody>\n<tr>\n<td>Custom retriever over raw Chroma</td>\n<td><code>index.as_retriever(filters=MetadataFilters(...))</code></td>\n<td><code>MetadataFilters</code> doesn't expose <code>$contains</code>; required for full-text filters</td>\n</tr>\n<tr>\n<td>Index built with <code>from_vector_store</code></td>\n<td><code>VectorStoreIndex.from_documents(...)</code></td>\n<td>Ingest runs separately; the index is just a view, no re-embedding at startup</td>\n</tr>\n<tr>\n<td>Custom tokenizer in <code>SentenceSplitter</code></td>\n<td>leave the default</td>\n<td>The default is GPT-2; for <code>chunk_size=500</code> to mean tokens of the embedding model, you must pass that tokenizer</td>\n</tr>\n<tr>\n<td>Subclass <code>CustomQueryEngine</code></td>\n<td>orchestrate by hand inside the service</td>\n<td>Turns the pipeline into a native component (callbacks, instrumentation, composability)</td>\n</tr>\n<tr>\n<td>Rebuild the engine per request</td>\n<td>cache it</td>\n<td>Filters change per message (page, chapter, \"at the end\"…), so the engine can't be cached. The good news: this is free — LLM, embedder, Chroma client, and index are already module-level singletons, so building <code>RagQueryEngine</code> is just constructing a pydantic class.</td>\n</tr>\n<tr>\n<td><code>append_turn</code> after <code>llm.chat</code></td>\n<td>save before/during</td>\n<td>Avoids corrupting memory if generation fails</td>\n</tr>\n<tr>\n<td>Normalize <code>page_label</code> → <code>page</code></td>\n<td>keep the metadata <code>PDFReader</code> hands you</td>\n<td>Parity with the LangChain branch so <code>build_filter</code> works in both</td>\n</tr>\n<tr>\n<td><code>@cached_property</code> for <code>_index</code></td>\n<td><code>@lru_cache</code> or cache in <code>__init__</code></td>\n<td>Prevents test contamination when <code>get_index</code> is patched</td>\n</tr>\n</tbody>\n"
+  },
+  "section.cierre.span.1": {
+    "es": "9. Para seguir aprendiendo",
+    "en": "9. Where to go next"
+  },
+  "section.cierre.body.p.1": {
+    "es": "Si llegaste hasta acá, ya tenés un mapa razonable del framework. Próximos pasos naturales:",
+    "en": "If you made it this far, you have a solid map of the framework. Natural next steps:"
+  },
+  "section.cierre.list.1": {
+    "es": "\n<li><strong>Paralelizá las retrievals.</strong> Hoy las 3 corren en serie dentro del <code>for q in queries</code>. Como no comparten estado, podés mandarlas a un <code>ThreadPoolExecutor</code> o usar la versión async (<code>aretrieve</code>) y juntarlas con <code>asyncio.gather</code>. Para 3 queries el ahorro ronda los ~200 ms.</li>\n<li><strong>Probá <code>QueryPipeline</code>.</strong> En vez de orquestar los 5 pasos a mano dentro de <code>custom_query</code>, los declarás como un grafo de módulos y dejás que LlamaIndex resuelva las dependencias. Sirve cuando querés <em>ramificación condicional</em> (ej.: \"si la query es muy corta, saltea expansión\") o cuando vas a tener varios <code>QueryEngine</code> con piezas compartidas. Ejemplo mínimo:\n    <pre><code><span class=\"tok-k\">from</span> llama_index.core.query_pipeline <span class=\"tok-k\">import</span> QueryPipeline, InputComponent\n\np = <span class=\"tok-f\">QueryPipeline</span>(verbose=<span class=\"tok-k\">True</span>)\np.<span class=\"tok-f\">add_modules</span>({\n    <span class=\"tok-s\">\"input\"</span>: <span class=\"tok-f\">InputComponent</span>(),\n    <span class=\"tok-s\">\"retriever\"</span>: my_retriever,\n    <span class=\"tok-s\">\"reranker\"</span>: my_reranker,\n    <span class=\"tok-s\">\"synth\"</span>: <span class=\"tok-f\">get_response_synthesizer</span>(),\n})\np.<span class=\"tok-f\">add_link</span>(<span class=\"tok-s\">\"input\"</span>, <span class=\"tok-s\">\"retriever\"</span>)\np.<span class=\"tok-f\">add_link</span>(<span class=\"tok-s\">\"retriever\"</span>, <span class=\"tok-s\">\"reranker\"</span>)\np.<span class=\"tok-f\">add_link</span>(<span class=\"tok-s\">\"reranker\"</span>, <span class=\"tok-s\">\"synth\"</span>, dest_key=<span class=\"tok-s\">\"nodes\"</span>)\np.<span class=\"tok-f\">add_link</span>(<span class=\"tok-s\">\"input\"</span>, <span class=\"tok-s\">\"synth\"</span>, dest_key=<span class=\"tok-s\">\"query_str\"</span>)\n\nresponse = p.<span class=\"tok-f\">run</span>(input=<span class=\"tok-s\">\"¿qué dice el capítulo 3?\"</span>)\n</code></pre>\n  El equivalente en este código serían los pasos retrieve → rerank → synth, expresados como un DAG. Lo poderoso aparece cuando agregás un <code>RouterComponent</code> que decide a qué retriever ir según la query.</li>\n<li><strong>Agregá un callback handler.</strong> Cualquier objeto del framework emite eventos a <code>Settings.callback_manager</code>. Si conectás un handler, ves la pipeline desde adentro sin tocar el código de <code>custom_query</code>. Ejemplo con el handler oficial de debug:\n    <pre><code><span class=\"tok-k\">from</span> llama_index.core <span class=\"tok-k\">import</span> Settings\n<span class=\"tok-k\">from</span> llama_index.core.callbacks <span class=\"tok-k\">import</span> CallbackManager, LlamaDebugHandler\n\ndebug = <span class=\"tok-f\">LlamaDebugHandler</span>(print_trace_on_end=<span class=\"tok-k\">True</span>)\nSettings.callback_manager = <span class=\"tok-f\">CallbackManager</span>([debug])\n\n<span class=\"tok-c\"># Después de cada srv.query(...) imprime el trace completo:</span>\n<span class=\"tok-c\">#   |_query -&gt; 1.4s</span>\n<span class=\"tok-c\">#       |_retrieve -&gt; 0.3s</span>\n<span class=\"tok-c\">#       |_LLM -&gt; 1.0s</span>\n<span class=\"tok-c\"># También accesible programáticamente:</span>\nevents = debug.<span class=\"tok-f\">get_event_pairs</span>(CBEventType.LLM)\n</code></pre>\n  Para producción se reemplaza <code>LlamaDebugHandler</code> por handlers que mandan los eventos a <strong>Arize Phoenix</strong>, <strong>Langfuse</strong>, <strong>OpenInference/OTel</strong> o <strong>Helicone</strong> — todos tienen integraciones nativas con LlamaIndex.</li>\n<li><strong>Mirá el <code>InfinityRerank</code>.</strong> Es un buen ejemplo de cómo extender <code>BaseNodePostprocessor</code> con tu propio servicio de reranking.</li>\n",
+    "en": "\n<li><strong>Parallelize the retrievals.</strong> Today the 3 of them run serially inside <code>for q in queries</code>. Since they don't share state, you can dispatch them to a <code>ThreadPoolExecutor</code> or use the async variant (<code>aretrieve</code>) and gather them with <code>asyncio.gather</code>. For 3 queries the saving is around ~200 ms.</li>\n<li><strong>Try <code>QueryPipeline</code>.</strong> Instead of orchestrating the 5 steps by hand inside <code>custom_query</code>, you declare them as a graph of modules and let LlamaIndex resolve the dependencies. It pays off when you want <em>conditional branching</em> (e.g. \"if the query is very short, skip expansion\") or when you'll have several <code>QueryEngine</code>s sharing pieces. Minimal example:\n    <pre><code><span class=\"tok-k\">from</span> llama_index.core.query_pipeline <span class=\"tok-k\">import</span> QueryPipeline, InputComponent\n\np = <span class=\"tok-f\">QueryPipeline</span>(verbose=<span class=\"tok-k\">True</span>)\np.<span class=\"tok-f\">add_modules</span>({\n    <span class=\"tok-s\">\"input\"</span>: <span class=\"tok-f\">InputComponent</span>(),\n    <span class=\"tok-s\">\"retriever\"</span>: my_retriever,\n    <span class=\"tok-s\">\"reranker\"</span>: my_reranker,\n    <span class=\"tok-s\">\"synth\"</span>: <span class=\"tok-f\">get_response_synthesizer</span>(),\n})\np.<span class=\"tok-f\">add_link</span>(<span class=\"tok-s\">\"input\"</span>, <span class=\"tok-s\">\"retriever\"</span>)\np.<span class=\"tok-f\">add_link</span>(<span class=\"tok-s\">\"retriever\"</span>, <span class=\"tok-s\">\"reranker\"</span>)\np.<span class=\"tok-f\">add_link</span>(<span class=\"tok-s\">\"reranker\"</span>, <span class=\"tok-s\">\"synth\"</span>, dest_key=<span class=\"tok-s\">\"nodes\"</span>)\np.<span class=\"tok-f\">add_link</span>(<span class=\"tok-s\">\"input\"</span>, <span class=\"tok-s\">\"synth\"</span>, dest_key=<span class=\"tok-s\">\"query_str\"</span>)\n\nresponse = p.<span class=\"tok-f\">run</span>(input=<span class=\"tok-s\">\"what does chapter 3 say?\"</span>)\n</code></pre>\n  In this codebase the equivalent would be the retrieve → rerank → synth steps, expressed as a DAG. The real power kicks in when you add a <code>RouterComponent</code> that decides which retriever to use based on the query.</li>\n<li><strong>Add a callback handler.</strong> Every framework object emits events to <code>Settings.callback_manager</code>. Hook up a handler and you see the pipeline from the inside without touching <code>custom_query</code> at all. Example with the official debug handler:\n    <pre><code><span class=\"tok-k\">from</span> llama_index.core <span class=\"tok-k\">import</span> Settings\n<span class=\"tok-k\">from</span> llama_index.core.callbacks <span class=\"tok-k\">import</span> CallbackManager, LlamaDebugHandler\n\ndebug = <span class=\"tok-f\">LlamaDebugHandler</span>(print_trace_on_end=<span class=\"tok-k\">True</span>)\nSettings.callback_manager = <span class=\"tok-f\">CallbackManager</span>([debug])\n\n<span class=\"tok-c\"># After every srv.query(...) it prints the full trace:</span>\n<span class=\"tok-c\">#   |_query -&gt; 1.4s</span>\n<span class=\"tok-c\">#       |_retrieve -&gt; 0.3s</span>\n<span class=\"tok-c\">#       |_LLM -&gt; 1.0s</span>\n<span class=\"tok-c\"># Also accessible programmatically:</span>\nevents = debug.<span class=\"tok-f\">get_event_pairs</span>(CBEventType.LLM)\n</code></pre>\n  In production you swap <code>LlamaDebugHandler</code> for handlers that ship events to <strong>Arize Phoenix</strong>, <strong>Langfuse</strong>, <strong>OpenInference/OTel</strong>, or <strong>Helicone</strong> — all of which have native LlamaIndex integrations.</li>\n<li><strong>Look at <code>InfinityRerank</code>.</strong> A good example of how to extend <code>BaseNodePostprocessor</code> with your own reranking service.</li>\n"
+  },
+  "section.cierre.body.p.2": {
+    "es": "La clave del framework, una vez que lo entendés, es esta: <strong>las interfaces base (<code>BaseRetriever</code>, <code>BaseNodePostprocessor</code>, <code>CustomQueryEngine</code>) son el contrato</strong>. Mientras respetes esos contratos, el \"cómo\" interno puede ser todo lo que necesites — incluso saltarte al backend nativo, como hace este código.",
+    "en": "The key insight, once you've internalized the framework, is this: <strong>the base interfaces (<code>BaseRetriever</code>, <code>BaseNodePostprocessor</code>, <code>CustomQueryEngine</code>) are the contract</strong>. As long as you honor those contracts, the internal \"how\" can be anything you need — including bypassing to the native backend, exactly as this code does."
+  },
+  "section.cierre.figcaption.1": {
+    "es": "Hasta acá llega el recorrido. Ahora abrí el código y leelo de nuevo — vas a ver todo distinto.",
+    "en": "That's the end of the walk. Now open the code and reread it — you'll see everything differently."
+  },
+  "section.cierre.span.2": {
+    "es": "Generado a partir de <code>backend/app/services/llamaindex_rag/service.py</code>",
+    "en": "Generated from <code>backend/app/services/llamaindex_rag/service.py</code>"
+  },
+  "breadcrumb.current": {
+    "es": "Engine LlamaIndex",
+    "en": "LlamaIndex engine"
+  },
+  "breadcrumb.parent": {
+    "es": "Conceptos de RAG",
+    "en": "RAG concepts"
+  },
+  "cierre.back_link.label": {
+    "es": "Volver a Conceptos de RAG",
+    "en": "Back to RAG concepts"
+  }
+}
