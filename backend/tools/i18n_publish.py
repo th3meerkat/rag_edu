@@ -28,8 +28,8 @@ INFO_DIR = REPO_ROOT / "tutorials"
 I18N_DIR = INFO_DIR / "i18n"
 
 SITE = {
-    "base_url": "https://elmago.github.io/rag_edu",
-    "github_url": "https://github.com/elmago/rag_edu",
+    "base_url": "https://th3meerkat.github.io/rag_edu",
+    "github_url": "https://github.com/th3meerkat/rag_edu",
     "author": "Diego",
     "published": "2026-05-07",
     "versions": "LangChain 0.3.x · LlamaIndex 0.12.x · Python 3.13",
