@@ -3,7 +3,8 @@ import os
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BACKEND_DIR / "app" / "data"
+RAW_DATA_DIR = BACKEND_DIR.parent / "raw_data"
+INGESTED_DATA_DIR = BACKEND_DIR / "app" / "ingested_data"
 ENV_PATH = BACKEND_DIR / ".env"
 
 

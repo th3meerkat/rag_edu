@@ -73,9 +73,10 @@ def fake_manifest() -> dict[str, int]:
 
 @pytest.fixture
 def manifest_dir(monkeypatch, tmp_path) -> Path:
-    """Redirect the shared `DATA_DIR` used by the manifest helpers to tmp_path."""
-    monkeypatch.setattr("app.services.utils.DATA_DIR", tmp_path)
-    monkeypatch.setattr("app.services.rag.DATA_DIR", tmp_path)
+    """Redirect the data dirs used by the manifest helpers and the PDF glob
+    to a shared tmp_path so tests can drop both PDFs and JSON manifests there."""
+    monkeypatch.setattr("app.services.utils.INGESTED_DATA_DIR", tmp_path)
+    monkeypatch.setattr("app.services.rag.RAW_DATA_DIR", tmp_path)
     return tmp_path
 
 

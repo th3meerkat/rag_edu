@@ -15,7 +15,7 @@ from typing import Callable, TypeVar
 import httpx
 
 from app.config import (
-    DATA_DIR,
+    INGESTED_DATA_DIR,
     POSITIONAL_WINDOW_PCT,
     RERANKER_MODEL,
     RERANKER_URL,
@@ -45,7 +45,7 @@ _PRINCIPIO_RE = re.compile(
 
 def manifest_path(engine: str) -> Path:
     """Path to the ingestion manifest for a given engine (one file per engine)."""
-    return DATA_DIR / f"ingested_{engine}.json"
+    return INGESTED_DATA_DIR / f"ingested_{engine}.json"
 
 
 def load_manifest(engine: str) -> dict[str, int]:

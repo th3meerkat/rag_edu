@@ -42,7 +42,7 @@ class TestRunIngestion:
     def test_no_pdfs_short_circuits(
         self, monkeypatch, tmp_path, temp_manifest_path
     ):
-        monkeypatch.setattr("app.services.rag.DATA_DIR", tmp_path)
+        monkeypatch.setattr("app.services.rag.RAW_DATA_DIR", tmp_path)
         srv = _FakeRagService()
         srv.run_ingestion()
         assert srv.ingest_calls == []
@@ -54,7 +54,7 @@ class TestRunIngestion:
         (tmp_path / "a.pdf").write_bytes(b"%PDF-1.0")
         (tmp_path / "b.pdf").write_bytes(b"%PDF-1.0")
         temp_manifest_path.write_text(json.dumps({"a.pdf": 3, "b.pdf": 4}))
-        monkeypatch.setattr("app.services.rag.DATA_DIR", tmp_path)
+        monkeypatch.setattr("app.services.rag.RAW_DATA_DIR", tmp_path)
 
         srv = _FakeRagService()
         srv.run_ingestion()
@@ -70,7 +70,7 @@ class TestRunIngestion:
         (tmp_path / "old.pdf").write_bytes(b"%PDF-1.0")
         (tmp_path / "new.pdf").write_bytes(b"%PDF-1.0")
         temp_manifest_path.write_text(json.dumps({"old.pdf": 2}))
-        monkeypatch.setattr("app.services.rag.DATA_DIR", tmp_path)
+        monkeypatch.setattr("app.services.rag.RAW_DATA_DIR", tmp_path)
 
         srv = _FakeRagService(ingest_result={"new.pdf": 7})
         srv.run_ingestion()

@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import ClassVar, Generic, TypeVar
 
-from app.config import DATA_DIR
+from app.config import RAW_DATA_DIR
 from app.services.utils import load_manifest, save_manifest
 
 logger = logging.getLogger(__name__)
@@ -48,9 +48,9 @@ class RagService(ABC, Generic[T]):
         per-engine manifest, delegate the heavy lifting to `_ingest`, then
         merge the new page counts back into the manifest.
         """
-        pdf_paths = sorted(DATA_DIR.glob("*.pdf"))
+        pdf_paths = sorted(RAW_DATA_DIR.glob("*.pdf"))
         if not pdf_paths:
-            logger.info("No PDFs found in %s", DATA_DIR)
+            logger.info("No PDFs found in %s", RAW_DATA_DIR)
             return
 
         manifest = load_manifest(self.engine_name)
@@ -61,7 +61,7 @@ class RagService(ABC, Generic[T]):
 
         logger.info(
             "Found %d PDF(s) in %s; %d new to ingest",
-            len(pdf_paths), DATA_DIR, len(new_pdf_paths),
+            len(pdf_paths), RAW_DATA_DIR, len(new_pdf_paths),
         )
 
         new_num_pages = self._ingest(new_pdf_paths)
