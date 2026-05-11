@@ -450,22 +450,25 @@
     left: 18px;
     z-index: 1200;
     display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 3px;
+    border-radius: 14px;
+    padding: 4px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     font-size: 12px;
     font-weight: 600;
     user-select: none;
   }
   .siblings a {
-    padding: 5px 12px;
-    border-radius: 999px;
+    padding: 6px 14px;
+    border-radius: 10px;
     color: var(--text-muted);
     text-decoration: none;
     transition: background 0.15s ease, color 0.15s ease;
     letter-spacing: 0.04em;
+    white-space: nowrap;
   }
   .siblings a:hover { color: var(--text); background: var(--accent-soft); }
   .siblings a[data-slug="langchain"] {
@@ -476,11 +479,9 @@
     .siblings {
       top: 64px;          /* below the toggle pill */
       left: 8px;
-      right: 8px;
-      justify-content: space-between;
       font-size: 11px;
     }
-    .siblings a { padding: 4px 8px; }
+    .siblings a { padding: 5px 10px; }
   }
 
   /* ======= Mobile touch target for toggle pill ======================== */
