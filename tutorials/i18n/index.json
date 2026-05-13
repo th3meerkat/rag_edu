@@ -4,8 +4,8 @@
     "en": "Tutorials · GenAI · Production-grade"
   },
   "hero.title": {
-    "es": "RAG Lab",
-    "en": "RAG Lab"
+    "es": "The Annotated RAG",
+    "en": "The Annotated RAG"
   },
   "hero.subtitle": {
     "es": "Cuatro tutoriales que enseñan RAG leyendo el código real de un sistema en producción — no quickstarts. Conceptos framework-agnostic, dos engines (LangChain y LlamaIndex), y un catálogo de troubleshooting para cuando algo no anda.",

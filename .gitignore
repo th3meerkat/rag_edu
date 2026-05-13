@@ -43,3 +43,6 @@ reranker_cache/
 
 # Eval runs (HTML reports are generated artifacts)
 backend/evals/reports/
+
+# Local drafts / notes
+message.txt
