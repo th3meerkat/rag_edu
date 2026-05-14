@@ -121,12 +121,9 @@ EXTRA_CSS = """
     color: #fff;
   }
   @media (max-width: 720px) {
-    .siblings {
-      top: 64px;          /* below the toggle pill */
-      left: 8px;
-      font-size: 11px;
-    }
-    .siblings a { padding: 5px 10px; }
+    /* On mobile the sibling nav overlaps the article header. Hide it —
+       each tutorial provides inline cross-CTAs at the closure for parity. */
+    .siblings { display: none; }
   }
 
   /* ======= Mobile touch target for toggle pill ======================== */

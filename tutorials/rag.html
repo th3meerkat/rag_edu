@@ -395,12 +395,9 @@
     color: #fff;
   }
   @media (max-width: 720px) {
-    .siblings {
-      top: 64px;          /* below the toggle pill */
-      left: 8px;
-      font-size: 11px;
-    }
-    .siblings a { padding: 5px 10px; }
+    /* On mobile the sibling nav overlaps the article header. Hide it —
+       each tutorial provides inline cross-CTAs at the closure for parity. */
+    .siblings { display: none; }
   }
 
   /* ======= Mobile touch target for toggle pill ======================== */
@@ -971,6 +968,10 @@
   <a href="llamaindex.html">
     <span class="cta-eyebrow" data-i18n="section.cierre.cta.llamaindex.eyebrow"></span>
     <span class="cta-title" data-i18n="section.cierre.cta.llamaindex.title"></span>
+  </a>
+  <a href="rag_faq.html">
+    <span class="cta-eyebrow" data-i18n="section.cierre.cta.rag_faq.eyebrow"></span>
+    <span class="cta-title" data-i18n="section.cierre.cta.rag_faq.title"></span>
   </a>
 </div>
 
@@ -1826,6 +1827,14 @@
   "section.cierre.cta.llamaindex.title": {
     "es": "Verlo implementado en LlamaIndex",
     "en": "See it implemented in LlamaIndex"
+  },
+  "section.cierre.cta.rag_faq.eyebrow": {
+    "es": "Operación",
+    "en": "Operations"
+  },
+  "section.cierre.cta.rag_faq.title": {
+    "es": "Troubleshooting y FAQ",
+    "en": "Troubleshooting & FAQ"
   },
   "footer.body": {
     "es": "Tutorial conceptual del proyecto <code>rag_chat<\/code>. Las implementaciones viven en <code>backend/app/services/langchain_rag/<\/code> y <code>backend/app/services/llamaindex_rag/<\/code>.",
