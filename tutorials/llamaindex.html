@@ -435,8 +435,44 @@
     box-shadow: 0 6px 14px rgba(43, 94, 58, 0.12);
   }
 
-
-
+  .cross-cta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin: 28px 0 8px;
+  }
+  .cross-cta a {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 18px;
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    text-decoration: none;
+    background: var(--bg-card);
+    color: var(--text);
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .cross-cta a:hover {
+    background: var(--accent-soft);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(43, 94, 58, 0.12);
+  }
+  .cross-cta a .cta-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .cross-cta a .cta-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .cross-cta a .cta-title::after {
+    content: " →";
+    color: var(--accent);
+  }
 
 
   /* ======= Sibling-tutorials extras :: managed by i18n_publish ======= */
@@ -473,12 +509,9 @@
     color: #fff;
   }
   @media (max-width: 720px) {
-    .siblings {
-      top: 64px;          /* below the toggle pill */
-      left: 8px;
-      font-size: 11px;
-    }
-    .siblings a { padding: 5px 10px; }
+    /* On mobile the sibling nav overlaps the article header. Hide it —
+       each tutorial provides inline cross-CTAs at the closure for parity. */
+    .siblings { display: none; }
   }
 
   /* ======= Mobile touch target for toggle pill ======================== */
@@ -1137,6 +1170,20 @@ TOP_K_FINAL         = <span class="tok-n">3</span>    <span class="tok-c"># los 
 
 <figcaption data-i18n="section.cierre.figcaption.1"></figcaption>
 </figure>
+<div class="cross-cta">
+<a href="rag.html">
+  <span class="cta-eyebrow" data-i18n="section.cierre.cross.rag.eyebrow"></span>
+  <span class="cta-title" data-i18n="section.cierre.cross.rag.title"></span>
+</a>
+<a href="langchain.html">
+  <span class="cta-eyebrow" data-i18n="section.cierre.cross.langchain.eyebrow"></span>
+  <span class="cta-title" data-i18n="section.cierre.cross.langchain.title"></span>
+</a>
+<a href="rag_faq.html">
+  <span class="cta-eyebrow" data-i18n="section.cierre.cross.rag_faq.eyebrow"></span>
+  <span class="cta-title" data-i18n="section.cierre.cross.rag_faq.title"></span>
+</a>
+</div>
 <a class="back-link" href="rag.html"><span data-i18n="cierre.back_link.label"></span></a>
 
 <footer>
@@ -1905,6 +1952,30 @@ TOP_K_FINAL         = <span class="tok-n">3</span>    <span class="tok-c"># los 
   "cierre.back_link.label": {
     "es": "Volver a Conceptos de RAG",
     "en": "Back to RAG concepts"
+  },
+  "section.cierre.cross.rag.eyebrow": {
+    "es": "Hub conceptual",
+    "en": "Concept hub"
+  },
+  "section.cierre.cross.rag.title": {
+    "es": "Cómo funciona un RAG por dentro",
+    "en": "How a RAG actually works"
+  },
+  "section.cierre.cross.langchain.eyebrow": {
+    "es": "Implementación",
+    "en": "Implementation"
+  },
+  "section.cierre.cross.langchain.title": {
+    "es": "El mismo RAG con LangChain",
+    "en": "The same RAG, with LangChain"
+  },
+  "section.cierre.cross.rag_faq.eyebrow": {
+    "es": "Operación",
+    "en": "Operations"
+  },
+  "section.cierre.cross.rag_faq.title": {
+    "es": "Troubleshooting y FAQ",
+    "en": "Troubleshooting & FAQ"
   },
   "siblings.rag": {
     "es": "Conceptos",

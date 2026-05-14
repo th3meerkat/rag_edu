@@ -1263,6 +1263,30 @@
     "es": "Volver a Conceptos de RAG",
     "en": "Back to RAG concepts"
   },
+  "section.cierre.cross.rag.eyebrow": {
+    "es": "Hub conceptual",
+    "en": "Concept hub"
+  },
+  "section.cierre.cross.rag.title": {
+    "es": "Cómo funciona un RAG por dentro",
+    "en": "How a RAG actually works"
+  },
+  "section.cierre.cross.llamaindex.eyebrow": {
+    "es": "Implementación",
+    "en": "Implementation"
+  },
+  "section.cierre.cross.llamaindex.title": {
+    "es": "El mismo RAG con LlamaIndex",
+    "en": "The same RAG, with LlamaIndex"
+  },
+  "section.cierre.cross.rag_faq.eyebrow": {
+    "es": "Operación",
+    "en": "Operations"
+  },
+  "section.cierre.cross.rag_faq.title": {
+    "es": "Troubleshooting y FAQ",
+    "en": "Troubleshooting & FAQ"
+  },
   "siblings.rag": {
     "es": "Conceptos",
     "en": "Concepts"

@@ -839,6 +839,14 @@
     "es": "Verlo implementado en LlamaIndex",
     "en": "See it implemented in LlamaIndex"
   },
+  "section.cierre.cta.rag_faq.eyebrow": {
+    "es": "Operación",
+    "en": "Operations"
+  },
+  "section.cierre.cta.rag_faq.title": {
+    "es": "Troubleshooting y FAQ",
+    "en": "Troubleshooting & FAQ"
+  },
   "footer.body": {
     "es": "Tutorial conceptual del proyecto <code>rag_chat</code>. Las implementaciones viven en <code>backend/app/services/langchain_rag/</code> y <code>backend/app/services/llamaindex_rag/</code>.",
     "en": "Conceptual tutorial for the <code>rag_chat</code> project. The implementations live in <code>backend/app/services/langchain_rag/</code> and <code>backend/app/services/llamaindex_rag/</code>."

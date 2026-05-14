@@ -220,7 +220,8 @@
   }
 
   @media (max-width: 720px) {
-    .container { padding: 48px 20px 56px; }
+    /* Top padding must clear the fixed .lang-toggle pill (top:18px + ~44px on mobile). */
+    .container { padding: 76px 20px 56px; }
     h1 { font-size: 34px; }
     .hero-img { max-width: 240px; }
   }
