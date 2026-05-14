@@ -11,6 +11,10 @@
     "es": "Cuatro tutoriales que enseñan RAG leyendo el código real de un sistema en producción — no quickstarts. Conceptos framework-agnostic, dos engines (LangChain y LlamaIndex), y un catálogo de troubleshooting para cuando algo no anda.",
     "en": "Four tutorials that teach RAG by reading the real code of a production system — not quickstarts. Framework-agnostic concepts, two engines (LangChain and LlamaIndex), and a troubleshooting catalog for when something breaks."
   },
+  "hero.github_cta": {
+    "es": "Ver el código en GitHub",
+    "en": "View the source on GitHub"
+  },
   "pitch.p1": {
     "es": "<strong>El ángulo:</strong> la mayoría de los tutoriales de RAG te muestran <code>VectorStoreIndex.from_documents(...)</code> en cinco líneas. Quedan lindos, pero no te preparan para las decisiones que aparecen cuando armás un RAG real — filtros que el framework no expone, pipelines con varios pasos, separación entre ingest y retrieve, testabilidad, evaluación.",
     "en": "<strong>The angle:</strong> most RAG tutorials show you <code>VectorStoreIndex.from_documents(...)</code> in five lines. They look clean, but they don't prepare you for the decisions you face when building a real RAG — filters the framework doesn't expose, multi-step pipelines, ingest/retrieve separation, testability, evaluation."

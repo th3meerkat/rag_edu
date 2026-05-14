@@ -278,6 +278,32 @@
     font-size: 14px;
   }
 
+  /* ======= Floating GitHub button (counterpart to .lang-toggle) ======= */
+  .github-fab {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 1200;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    color: var(--text);
+    text-decoration: none;
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  }
+  .github-fab:hover { background: var(--accent-soft); transform: scale(1.05); }
+  .github-fab svg { width: 18px; height: 18px; fill: currentColor; }
+  @media (max-width: 720px) {
+    .github-fab { width: 44px; height: 44px; }
+    .github-fab svg { width: 20px; height: 20px; }
+  }
+
   /* ======= Language toggle ============================================ */
   .lang-toggle {
     position: fixed;
@@ -355,7 +381,7 @@
   /* ======= Sibling-tutorials nav ====================================== */
   .siblings {
     position: fixed;
-    top: 18px;
+    top: 18px;          /* top-left, mirrors the lang-toggle on the right */
     left: 18px;
     z-index: 1200;
     display: inline-flex;
@@ -384,10 +410,32 @@
     background: var(--accent);
     color: #fff;
   }
+  /* GitHub icon row at the top of the siblings nav (desktop tutorial pages) */
+  .siblings-gh {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0 !important;
+    color: var(--text-muted);
+  }
+  .siblings-gh:hover { color: var(--text); }
+  .siblings-gh svg { width: 18px; height: 18px; fill: currentColor; }
+  .siblings-sep {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 4px 4px;
+    width: auto;
+  }
+  /* On desktop the GitHub link lives inside .siblings, hide the floating FAB. */
+  @media (min-width: 721px) {
+    .github-fab { display: none; }
+  }
   @media (max-width: 720px) {
     /* On mobile the sibling nav overlaps the article header. Hide it —
        each tutorial provides inline cross-CTAs at the closure for parity. */
     .siblings { display: none; }
+    /* Push content below the .github-fab / .lang-toggle row (top:18px + ~44px). */
+    .container { padding-top: 80px; }
   }
 
   /* ======= Mobile touch target for toggle pill ======================== */
@@ -481,7 +529,12 @@
 <!-- /Favicons -->
 </head>
 <body class="lang-en">
+<a class="github-fab" href="https://github.com/th3meerkat/rag_edu" target="_blank" rel="noopener" aria-label="View source on GitHub" title="View source on GitHub">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+</a>
 <nav class="siblings" aria-label="Tutorial siblings">
+  <a class="siblings-gh" href="https://github.com/th3meerkat/rag_edu" target="_blank" rel="noopener" aria-label="View source on GitHub" title="View source on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+  <hr class="siblings-sep">
   <a href="rag.html"        data-slug="rag"        ><span data-i18n="siblings.rag"></span></a>
   <a href="langchain.html"  data-slug="langchain"  ><span data-i18n="siblings.langchain"></span></a>
   <a href="llamaindex.html" data-slug="llamaindex" ><span data-i18n="siblings.llamaindex"></span></a>
@@ -727,7 +780,7 @@
   <span data-i18n="section.cierre.span.6"></span>
   <p class="footer-meta">
     <span data-i18n="footer.author"></span>
-    · <a href="https://github.com/th3meerkat/rag_edu" target="_blank" rel="noopener">GitHub</a>
+    · <a href="https://github.com/th3meerkat/rag_edu" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-2px;margin-right:5px;fill:currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>GitHub</a>
     · <span data-i18n="footer.versions"></span>
   </p>
 </footer>
